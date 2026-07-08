@@ -17,8 +17,7 @@ async function authorize() {
   await page.goto('https://mc.ru')
   await delay(Math.random() * 1000 + 500)
 
-  // Проверяем залогинены ли мы — если есть кнопка "Личный кабинет" с data-auth-link
-  // значит не авторизованы
+  // Если нет data-auth-link — значит уже авторизованы
   const isLoggedIn = await page.$('.headerCabinet[data-auth-link]')
     .then(el => el ? false : true)
     .catch(() => false)
@@ -42,16 +41,15 @@ async function authorize() {
   await page.fill('#pswrd', process.env.MC_PASSWORD)
   await delay(Math.random() * 500 + 200)
 
-  // Нажимаем войти
-await page.evaluate(() => {
-  // Находим все кнопки submit и берём ту что содержит текст ВОЙТИ
-  const buttons = document.querySelectorAll('button[type="submit"]')
-  const loginBtn = Array.from(buttons).find(b => b.textContent.trim() === 'ВОЙТИ')
-  if (loginBtn) loginBtn.click()
-})
-await delay(2000)
-await page.waitForNavigation({ waitUntil: 'networkidle' })
-  await page.waitForNavigation({ waitUntil: 'networkidle' })
+  // Нажимаем войти через JS
+  await page.evaluate(() => {
+    const buttons = document.querySelectorAll('button[type="submit"]')
+    const loginBtn = Array.from(buttons).find(b => b.textContent.trim() === 'ВОЙТИ')
+    if (loginBtn) loginBtn.click()
+  })
+
+  // Ждём 3 секунды пока страница обновится
+  await delay(3000)
 
   logger.info('Авторизация успешна')
 }

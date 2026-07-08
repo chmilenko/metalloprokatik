@@ -12,10 +12,11 @@ let browser = null
 let page = null
 
 async function getBrowser() {
-  if (!browser) {
+  if (!browser || !browser.isConnected()) {
     browser = await chromium.launch({
-      headless: false, // false чтобы видеть что происходит во время разработки
+      headless: false
     })
+    page = null // сбрасываем страницу при новом браузере
     logger.info('Браузер запущен')
   }
   return browser
@@ -25,8 +26,8 @@ async function getPage() {
   if (!page) {
     const br = await getBrowser()
     const context = await br.newContext({
-      // Притворяемся обычным пользователем
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      acceptDownloads: true
     })
     page = await context.newPage()
   }

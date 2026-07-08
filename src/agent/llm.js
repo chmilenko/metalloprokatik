@@ -2,23 +2,23 @@
  * llm.js
  * 
  * Абстрактный слой для работы с AI моделями.
- * Сейчас используем Groq (Llama 3) — бесплатный tier.
+ * Сейчас используем Claude Sonnet — основная модель для прода.
  */
 
-const Groq = require('groq-sdk')
+const Anthropic = require('@anthropic-ai/sdk')
 
-const client = new Groq({
-  apiKey: process.env.GROQ_API_KEY
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY
 })
 
 async function askAI(prompt) {
-  const response = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 1000
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1000,
+    messages: [{ role: 'user', content: prompt }]
   })
 
-  return response.choices[0].message.content
+  return response.content[0].text
 }
 
 module.exports = { askAI }
