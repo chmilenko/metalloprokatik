@@ -47,4 +47,21 @@ async function closeBrowser() {
   }
 }
 
+async function getBrowser() {
+  if (!browser || !browser.isConnected()) {
+    browser = await chromium.launch({
+      headless: true, // на сервере всегда headless
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage'
+      ]
+    })
+    page = null
+    logger.info('Браузер запущен')
+  }
+  return browser
+}
+
 module.exports = { getBrowser, getPage, closeBrowser }

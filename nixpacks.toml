@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["chromium", "playwright-driver"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[start]
+cmd = "node index.js"
