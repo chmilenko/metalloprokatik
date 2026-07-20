@@ -211,4 +211,24 @@ async function clearCart(page) {
   logger.info('Корзина очищена')
 }
 
-module.exports = { placeOrder, clearCart }
+async function screenshotCart() {
+  const page = await getPage()
+
+  logger.info('Делаем скриншот корзины')
+  await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1')
+  await page.waitForLoadState('domcontentloaded')
+  await delay(1000)
+
+  const outputDir = path.join(__dirname, '../../downloads')
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true })
+  }
+
+  const screenshotPath = path.join(outputDir, `cart_${Date.now()}.png`)
+  await page.screenshot({ path: screenshotPath, fullPage: true })
+
+  logger.info('Скриншот корзины сохранён', { path: screenshotPath })
+  return screenshotPath
+}
+
+module.exports = { placeOrder, clearCart, screenshotCart  }

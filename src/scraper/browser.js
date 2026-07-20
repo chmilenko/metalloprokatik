@@ -12,6 +12,7 @@ let browser = null
 let page = null
 
 async function getBrowser() {
+  // Проверяем что браузер живой
   if (!browser || !browser.isConnected()) {
     browser = await chromium.launch({
       headless: false
@@ -23,14 +24,17 @@ async function getBrowser() {
 }
 
 async function getPage() {
-  if (!page) {
-    const br = await getBrowser()
+  const br = await getBrowser()
+
+  // Проверяем что страница живая
+  if (!page || page.isClosed()) {
     const context = await br.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       acceptDownloads: true
     })
     page = await context.newPage()
   }
+
   return page
 }
 

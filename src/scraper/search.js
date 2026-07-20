@@ -67,7 +67,9 @@ const rows = await page.$$eval('table tbody tr', rows => {
   // Фильтруем только строки где есть цена
 })
   logger.info('Найдено вариантов', { query, count: rows.length })
-
+// Временно добавь перед filterVariants
+console.log('Найденные строки до фильтрации:')
+rows.forEach(r => console.log(JSON.stringify(r)))
 const filtered = filterVariants(rows, position)
   
   logger.info('Найдено вариантов после фильтрации', { 
@@ -81,33 +83,79 @@ const filtered = filterVariants(rows, position)
 
 // После получения rows добавь фильтрацию
 function filterVariants(variants, position) {
+  const запросНижний = (position.поисковый_запрос || '').toLowerCase()
+  const нужнаНержавейка = запросНижний.includes('нержавеющ') ||
+                          запросНижний.includes('aisi') ||
+                          запросНижний.includes('нерж')
+  const нужнаНизколег = запросНижний.includes('низколегир') ||
+                        (position.параметры?.марка || '').toLowerCase().includes('09г2с') ||
+                        (position.параметры?.марка || '').toLowerCase().includes('с355')
+
   return variants.filter(v => {
     const название = v.название.toLowerCase()
 
-    // Фильтр по ДУ если указан
+    // Убираем нержавейку если не нужна
+    const этоНержавейка = название.includes('нержавеющ') ||
+                          название.includes('aisi') ||
+                          название.includes('нерж')
+    if (этоНержавейка && !нужнаНержавейка) return false
+
+    // Убираем низколегированные если не нужны
+    const этоНизколег = название.includes('низколегир')
+    if (этоНизколег && !нужнаНизколег) return false
+
+    // Фильтр для сортового проката по номеру
+    if (запросНижний.includes('швеллер') || запросНижний.includes('уголок') ||
+        запросНижний.includes('балка') || запросНижний.includes('круг') ||
+        запросНижний.includes('полоса')) {
+
+      const номерЗапроса = запросНижний
+        .replace(/швеллер|уголок|балка|круг|полоса/g, '')
+        .trim()
+
+      if (номерЗапроса) {
+        const номерБезБуквы = номерЗапроса.replace(/[пу]/g, '').trim()
+        const буква = номерЗапроса.replace(/[^пу]/g, '').trim()
+
+        const регулярка = new RegExp(`(^|\\s|\\()${номерБезБуквы}(\\s|п|у|х|x|$|\\))`)
+        if (!регулярка.test(название)) return false
+
+        if (буква) {
+          if (!название.includes(` ${буква}`) &&
+              !название.includes(`${номерБезБуквы}${буква}`)) return false
+        }
+      }
+
+      return true
+    }
+
+    // Фильтр по ДУ
     if (position.параметры?.ду) {
       if (!название.includes(`${position.параметры.ду}`)) return false
     }
 
-    // Фильтр по диаметру если указан
+    // Фильтр по диаметру
     if (position.параметры?.диаметр) {
       if (!название.includes(`${position.параметры.диаметр}`)) return false
     }
 
-    // Фильтр по стенке — смотрим в поле марка
+    // Фильтр по стенке
     if (position.параметры?.стенка) {
       const стенка = String(position.параметры.стенка)
-      if (v.марка !== стенка) return false
+      const стенкаВНазвании = название.includes(`x${стенка}`) ||
+                              название.includes(`х${стенка}`) ||
+                              название.includes(`*${стенка}`)
+      const стенкаВМарке = v.марка === стенка
+      if (!стенкаВНазвании && !стенкаВМарке) return false
     }
 
-    // Фильтр по толщине для листа
+    // Фильтр по толщине листа
     if (position.параметры?.толщина) {
       const толщина = String(position.параметры.толщина)
-      if (!название.includes(`${толщина}х`) && 
+      if (!название.includes(`${толщина}х`) &&
           !название.includes(`${толщина}x`)) return false
     }
 
-    // Фильтр по размерам если указаны (например 1250х2500)
     if (position.параметры?.ширина) {
       if (!название.includes(`${position.параметры.ширина}`)) return false
     }
