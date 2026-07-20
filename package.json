@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npx playwright install chromium --with-deps && node index.js",
+    "start": "node node_modules/.bin/playwright install chromium --with-deps && node index.js",
     "dev": "node --watch --watch-path=src index.js"
   },
   "keywords": [],
