@@ -18,8 +18,7 @@ async function handleMessage(ctx) {
   const text = ctx.message.text;
   const userId = ctx.from.id;
   const session = getSession(userId);
-  const userId = ctx.from.id;
-
+  
   if (!isAllowed(userId)) {
     await ctx.reply("⛔ У вас нет доступа к этому боту.");
     return;
