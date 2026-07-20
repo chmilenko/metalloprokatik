@@ -7,6 +7,6 @@ RUN npm install
 
 COPY . .
 
-RUN npx playwright install chromium
+RUN node node_modules/playwright/cli.js install chromium
 
 CMD ["node", "index.js"]
