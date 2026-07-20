@@ -12,17 +12,22 @@ let browser = null
 let page = null
 
 async function getBrowser() {
-  // Проверяем что браузер живой
   if (!browser || !browser.isConnected()) {
     browser = await chromium.launch({
-      headless: false
+      headless: true,
+      channel: undefined, // не используем channel
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
     })
-    page = null // сбрасываем страницу при новом браузере
+    page = null
     logger.info('Браузер запущен')
   }
   return browser
 }
-
 async function getPage() {
   const br = await getBrowser()
 
