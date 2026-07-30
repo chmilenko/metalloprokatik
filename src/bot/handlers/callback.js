@@ -4,6 +4,7 @@
  * Обрабатывает нажатия на inline кнопки.
  */
 
+const fs = require('fs')
 const logger = require('../../utils/logger')
 const { getSession, clearSession } = require('../../utils/session')
 const { placeOrder } = require('../../scraper/order')
@@ -29,7 +30,7 @@ async function handleCallback(ctx) {
       clearSession(userId)
 
       await ctx.replyWithDocument(
-        { source: pdfPath, filename: 'Счет_mc.ru.pdf' },
+        { source: fs.createReadStream(pdfPath), filename: 'Счет_mc.ru.pdf' },
         { caption: '✅ Заказ оформлен! Счёт во вложении.' }
       )
     } catch (err) {
@@ -40,9 +41,8 @@ async function handleCallback(ctx) {
   } else if (data === 'cancel_order') {
     await ctx.editMessageReplyMarkup({ inline_keyboard: [] })
     clearSession(userId)
-    await ctx.reply('❌ Заказ отменён. Корзина очищена.')
+    await ctx.reply('❌ Заказ отменён.')
 
-    // Очищаем корзину
     try {
       const { clearCart } = require('../../scraper/order')
       const { getPage } = require('../../scraper/browser')

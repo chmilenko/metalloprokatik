@@ -8,7 +8,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const MAP_PATH = path.join(__dirname, '../data/searchMap.json')
+const MAP_PATH = path.join(__dirname, '../../data/searchMap.json')
 
 function loadMap() {
   const raw = fs.readFileSync(MAP_PATH, 'utf-8')

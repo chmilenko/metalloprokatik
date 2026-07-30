@@ -53,24 +53,26 @@ async function addToCart(variant, quantity, unit = "т") {
   let targetRow = null;
 
   for (const row of rows) {
+    // Пропускаем строки без кнопки
+    const hasButton = await row
+      .$("button._basket, button._phone")
+      .catch(() => null);
+    if (!hasButton) continue;
+
     const смц = await row
-      .$eval("td:nth-child(5)", (el) => el.innerText.trim())
-      .catch(() => "");
+      .$eval("td._fact", (el) => el.innerText.trim())
+      .catch(() =>
+        row
+          .$eval("td:nth-child(5)", (el) => el.innerText.trim())
+          .catch(() => ""),
+      );
     const название = await row
-      .$eval("td:nth-child(1)", (el) => el.innerText.trim())
-      .catch(() => "");
-
-    // Баг 1 — пропускаем нержавеющие если в запросе их нет
-    const запросНижний = variant.поисковый_запрос.toLowerCase();
-    const названиеНижний = название.toLowerCase();
-    const этоНержавейка =
-      названиеНижний.includes("нержавеющ") ||
-      названиеНижний.includes("aisi") ||
-      названиеНижний.includes("aisi");
-    const нужнаНержавейка =
-      запросНижний.includes("нержавеющ") || запросНижний.includes("aisi");
-
-    if (этоНержавейка && !нужнаНержавейка) continue;
+      .$eval("td.TovName", (el) => el.innerText.trim())
+      .catch(() =>
+        row
+          .$eval("td:nth-child(1)", (el) => el.innerText.trim())
+          .catch(() => ""),
+      );
 
     if (смц === variant.смц && название === variant.название) {
       targetRow = row;
@@ -83,31 +85,26 @@ async function addToCart(variant, quantity, unit = "т") {
       `Не нашли строку: ${variant.название} на базе ${variant.смц}`,
     );
   }
-if (targetRow) {
-  const html = await targetRow.evaluate(el => el.innerHTML)
-  console.log('HTML найденной строки:', html.substring(0, 500))
-}
 
-  // Проверяем есть ли кнопка корзины или только телефон
-const basketBtn = await targetRow.$('button._basket').catch(() => null)
-const phoneBtn = await targetRow.$('button._phone').catch(() => null)
+  // Проверяем кнопки
+  const basketBtn = await targetRow.$("button._basket").catch(() => null);
+  const phoneBtn = await targetRow.$("button._phone").catch(() => null);
 
-console.log('Кнопки:', { 
-  basket: !!basketBtn, 
-  phone: !!phoneBtn,
-  название: variant.название 
-})
+  if (phoneBtn && !basketBtn) {
+    logger.warn("Позиция только по звонку", {
+      название: variant.название,
+      смц: variant.смц,
+    });
+    throw new Error(`PHONE_ONLY:${variant.название}`);
+  }
 
-if (phoneBtn && !basketBtn) {
-  throw new Error(`PHONE_ONLY:${variant.название}`)
-}
+  if (!basketBtn) {
+    throw new Error(`Не нашли кнопку корзины: ${variant.название}`);
+  }
 
-if (!basketBtn) {
-  throw new Error(`Нет кнопки корзины: ${variant.название}`)
-}
-
-await basketBtn.click()
-await delay(1000)
+  // Кликаем на иконку корзины
+  await basketBtn.click();
+  await delay(1000);
 
   // Ждём появления iframe внутри модалки
   await page.waitForSelector("#addbasket", { state: "visible" });
@@ -121,19 +118,48 @@ await delay(1000)
   await iframe.waitForSelector("#tonns", { state: "visible" });
   await delay(500);
 
-  // Баг 2 — очищаем поле и вводим количество через triple_click + fill
-  if (unit === "м") {
-    await iframe.click("#meters", { clickCount: 3 });
-    await delay(200);
-    // Вводим посимвольно чтобы триггерить события
-    await iframe.type("#meters", String(quantity), { delay: 100 });
+  // Определяем куда вводить количество
+  if (unit === "м" || unit === "шт") {
+    // Проверяем доступно ли поле метров
+    const metersType = await iframe
+      .$eval("#meters", (el) => el.type)
+      .catch(() => "hidden");
+    console.log("Тип поля метров:", metersType);
+
+    if (metersType !== "hidden") {
+      // Вводим в метры
+      await iframe.click("#meters", { clickCount: 3 });
+      await delay(200);
+      await iframe.type("#meters", String(quantity), { delay: 100 });
+    } else {
+      // Метры скрыты — вводим в тонны
+      logger.warn("Поле метров скрыто — вводим в тонны", { quantity });
+      await iframe.click("#tonns", { clickCount: 3 });
+      await delay(200);
+      await iframe.type("#tonns", String(quantity), { delay: 100 });
+    }
   } else {
+    // Тонны или кг
     await iframe.click("#tonns", { clickCount: 3 });
     await delay(200);
     await iframe.type("#tonns", String(quantity), { delay: 100 });
   }
-  // Ждём пересчёта суммы перед нажатием кнопки
+
+  // Ждём пересчёта суммы
   await delay(1500);
+
+  // Читаем сообщения об ошибках из iframe
+  const errorMessage = await iframe
+    .$eval("p.error", (el) => el.innerText.trim())
+    .catch(() => null);
+  if (errorMessage) {
+    logger.warn("Предупреждение при добавлении в корзину", {
+      название: variant.название,
+      сообщение: errorMessage,
+    });
+    // Возвращаем предупреждение — не падаем, просто сообщаем
+    throw new Error(`WARNING:${variant.название}|${errorMessage}`);
+  }
 
   // Нажимаем кнопку — "Добавить в корзину" или "Обновить в корзине"
   await iframe.evaluate(() => {
