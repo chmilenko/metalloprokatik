@@ -26,14 +26,18 @@ bot.command("skip", async (ctx) => {
 
   if (session.waitingForSearchQuery) {
     const remaining = session.remainingNeedHelp || [];
-    
+
     if (remaining.length > 0) {
-      // Есть ещё ненайденные — спрашиваем про следующую
       await ctx.reply("⏭️ Позиция пропущена.");
-      
+
       const next = remaining[0];
       const rest = remaining.slice(1);
+      
+      // Сохраняем awaitingConfirmation если было
       setSession(userId, {
+        awaitingConfirmation: session.awaitingConfirmation,
+        selection: session.selection,
+        orderId: session.orderId,
         waitingForSearchQuery: next,
         remainingNeedHelp: rest,
       });
@@ -45,9 +49,13 @@ bot.command("skip", async (ctx) => {
         { parse_mode: "Markdown" }
       );
     } else {
-      // Больше нет ненайденных
-      clearSession(userId);
-      await ctx.reply("⏭️ Позиция пропущена. Отправь заявку снова.");
+      // Больше нет ненайденных — сохраняем только awaitingConfirmation
+      setSession(userId, {
+        awaitingConfirmation: session.awaitingConfirmation,
+        selection: session.selection,
+        orderId: session.orderId,
+      });
+      await ctx.reply("⏭️ Позиция пропущена. Можете оформить заказ.");
     }
   } else {
     await ctx.reply("Нечего пропускать.");

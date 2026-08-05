@@ -101,7 +101,19 @@ async function handleMessage(ctx) {
     selection.forEach((s, i) => {
       summary += `${i + 1}. ${s.variant.название}\n`
       summary += `   ${s.position.количество} ${s.position.единица} — ${s.variant.смц}\n`
-      summary += `   Цена: ${s.variant.цена_от_1т?.toLocaleString("ru")} руб/т\n\n`
+      summary += `   Цена: ${s.variant.цена_от_1т?.toLocaleString("ru")} руб/т\n`
+
+      // Если сайт скорректировал количество (например, не хватило на
+      // складе) — показываем менеджеру точный текст предупреждения,
+      // а не только тихо занижаем ожидания
+      const запись = order.корзина.find(
+        (c) => c.название === s.position.название && c.смц === s.variant.смц
+      );
+      if (запись?.предупреждение) {
+        summary += `   ⚠️ ${запись.предупреждение}\n`
+      }
+
+      summary += `\n`
     })
 
     if (notFound.length > 0) {
@@ -120,7 +132,10 @@ async function handleMessage(ctx) {
     if (ошибкаДобавления > 0) {
       summary += `⚠️ Не удалось добавить (${ошибкаДобавления}):\n`
       order.корзина.filter(c => c.статус === 'ошибка')
-        .forEach(c => { summary += `   • ${c.название}\n` })
+        .forEach(c => {
+          summary += `   • ${c.название}`
+          summary += c.ошибка ? ` — ${c.ошибка}\n` : `\n`
+        })
       summary += '\n'
     }
 

@@ -20,25 +20,37 @@ async function addToCart(variant, quantity, unit = "т") {
     единица: unit,
   });
 
-  // Переходим на главную и ищем через поисковую строку
-  await page.goto("https://mc.ru");
-  await page.waitForLoadState("domcontentloaded");
-  await delay(1000);
+  if (variant.sourceUrl) {
+    // Вариант уже был найден на конкретной странице (категория или
+    // результаты поиска) — переходим сразу туда. Это надёжнее повторного
+    // поиска с нуля: на разных страницах СМЦ может форматироваться
+    // по-разному (склады объединяются в одну ячейку по-разному), из-за
+    // чего повторный поиск не находил строку с тем же СМЦ буквально.
+    await page.goto(variant.sourceUrl);
+    await page.waitForLoadState("domcontentloaded");
+    await delay(1000);
+  } else {
+    // Старое поведение — ищем заново через строку поиска (для вариантов
+    // без sourceUrl, на случай обратной совместимости)
+    await page.goto("https://mc.ru");
+    await page.waitForLoadState("domcontentloaded");
+    await delay(1000);
 
-  // Открываем поиск
-  await page.evaluate(() => {
-    document.querySelector("#searchField").click();
-  });
-  await delay(300);
+    // Открываем поиск
+    await page.evaluate(() => {
+      document.querySelector("#searchField").click();
+    });
+    await delay(300);
 
-  // Вводим запрос
-  await page.waitForSelector('input[name="referal"]', { state: "visible" });
-  await page.fill('input[name="referal"]', variant.поисковый_запрос);
-  await delay(300);
+    // Вводим запрос
+    await page.waitForSelector('input[name="referal"]', { state: "visible" });
+    await page.fill('input[name="referal"]', variant.поисковый_запрос);
+    await delay(300);
 
-  await page.press('input[name="referal"]', "Enter");
-  await page.waitForLoadState("domcontentloaded");
-  await delay(2000);
+    await page.press('input[name="referal"]', "Enter");
+    await page.waitForLoadState("domcontentloaded");
+    await delay(2000);
+  }
 
   // Ждём таблицу
   await page.waitForSelector("table tbody tr", {
@@ -73,8 +85,19 @@ async function addToCart(variant, quantity, unit = "т") {
           .$eval("td:nth-child(1)", (el) => el.innerText.trim())
           .catch(() => ""),
       );
+    // Марка — критично сверять и её: у сортового проката (круг, квадрат
+    // и т.п.) разные марки стали одного диаметра часто имеют ИДЕНТИЧНЫЕ
+    // название и СМЦ (например Ст35/Ст20/Ст45 круг 40мм — все "горячекатаный
+    // круг из конструкционной сортовой стали 40" на одной базе Карачарово).
+    // Без сверки марки код мог кликнуть на первую попавшуюся строку с
+    // совпадающими название+смц — не обязательно ту, что реально выбрана.
+    const марка = await row
+      .$eval("td:nth-child(3)", (el) => el.innerText.trim())
+      .catch(() => "");
 
-    if (смц === variant.смц && название === variant.название) {
+    const маркаСовпадает = !variant.марка || марка === variant.марка;
+
+    if (смц === variant.смц && название === variant.название && маркаСовпадает) {
       targetRow = row;
       break;
     }
@@ -82,7 +105,7 @@ async function addToCart(variant, quantity, unit = "т") {
 
   if (!targetRow) {
     throw new Error(
-      `Не нашли строку: ${variant.название} на базе ${variant.смц}`,
+      `Не нашли строку: ${variant.название} (марка: ${variant.марка || "любая"}) на базе ${variant.смц}`,
     );
   }
 
@@ -148,17 +171,57 @@ async function addToCart(variant, quantity, unit = "т") {
   // Ждём пересчёта суммы
   await delay(1500);
 
-  // Читаем сообщения об ошибках из iframe
+  // Читаем сообщения об ошибках из iframe. Не полагаемся только на
+  // конкретный селектор p.error — предупреждение о нехватке на складе
+  // может рендериться другой разметкой. Дополнительно сканируем весь текст
+  // модалки на характерные фразы.
   const errorMessage = await iframe
-    .$eval("p.error", (el) => el.innerText.trim())
+    .evaluate(() => {
+      const specific = document.querySelector("p.error");
+      if (specific && specific.innerText.trim()) {
+        return specific.innerText.trim();
+      }
+
+      const bodyText = document.body.innerText || "";
+      const patterns = [
+        /недостаточно[^\n]*/i,
+        /максимально доступно[^\n]*/i,
+        /нет в наличии[^\n]*/i,
+        /невозможно добавить[^\n]*/i,
+        /остаток[^\n]*меньше[^\n]*/i,
+        /превышает[^\n]*остаток[^\n]*/i,
+      ];
+      for (const p of patterns) {
+        const match = bodyText.match(p);
+        if (match) return match[0].trim();
+      }
+
+      return null;
+    })
     .catch(() => null);
-  if (errorMessage) {
+
+  // Сообщение вида "Максимальный объём заказа: 9 т. Количество уменьшено
+  // до 9 т" — НЕ блокирующая ошибка, а уведомление: сайт сам скорректировал
+  // количество и готов добавить товар в меньшем объёме. В этом случае
+  // нужно продолжать (кликать "Добавить в корзину"), а не прерываться —
+  // но обязательно передать текст наверх, чтобы менеджер его увидел.
+  const этоКорректировкаКоличества = errorMessage &&
+    /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
+
+  if (errorMessage && !этоКорректировкаКоличества) {
     logger.warn("Предупреждение при добавлении в корзину", {
       название: variant.название,
       сообщение: errorMessage,
     });
-    // Возвращаем предупреждение — не падаем, просто сообщаем
+    // Блокирующая ошибка — не падаем молча, просто сообщаем и прерываем
     throw new Error(`WARNING:${variant.название}|${errorMessage}`);
+  }
+
+  if (этоКорректировкаКоличества) {
+    logger.warn("Количество скорректировано сайтом — продолжаем добавление", {
+      название: variant.название,
+      сообщение: errorMessage,
+    });
   }
 
   // Нажимаем кнопку — "Добавить в корзину" или "Обновить в корзине"
@@ -172,11 +235,27 @@ async function addToCart(variant, quantity, unit = "т") {
     if (btn) btn.click();
   });
 
+  // Раньше здесь была проверка "модалка должна закрыться в течение 5с,
+  // иначе считаем что не добавилось" — убрал её: она давала ложные
+  // срабатывания (репортила NOT_ADDED даже когда товар реально попадал
+  // в корзину), т.к. предположение о видимости #addbasket после успеха
+  // оказалось неверным. Раз ошибки уже отлавливаются через p.error выше —
+  // после клика просто ждём и считаем успехом.
   await delay(1000);
+
   logger.info("Добавлено в корзину", {
     название: variant.название,
     смц: variant.смц,
+    ...(этоКорректировкаКоличества ? { скорректировано: errorMessage } : {}),
   });
+
+  // Возвращаем информацию о том, было ли количество скорректировано сайтом —
+  // вызывающий код (processOrder) может использовать это, чтобы показать
+  // менеджеру точный текст предупреждения вместо молчаливого "успеха"
+  return {
+    adjusted: !!этоКорректировкаКоличества,
+    adjustmentMessage: этоКорректировкаКоличества ? errorMessage : null,
+  };
 }
 
 module.exports = { addToCart };
