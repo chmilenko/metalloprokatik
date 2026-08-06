@@ -15,9 +15,12 @@ const { isAllowed } = require("../utils/auth");
 const { saveFeedback, getFeedback } = require("../utils/feedback");
 const { getOrder, getRecentOrders } = require("../utils/orderLogger");
 const { sendAlert } = require("../utils/alerts");
+const { handleBasesCommand } = require('./handlers/basePriority');
 const { handleDecisionCommand } = require('./handlers/decision');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+bot.command('bases', handleBasesCommand);
 
 bot.command('decision', handleDecisionCommand);
 

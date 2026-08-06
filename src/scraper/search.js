@@ -5,10 +5,10 @@
  * Два режима: глобальный поиск и поиск по URL категории.
  */
 
-const logger = require('../utils/logger')
-const { getPage } = require('./browser')
+const logger = require("../utils/logger");
+const { getPage } = require("./browser");
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Проверяет, что "слово" входит в "текст" как ЦЕЛОЕ слово, а не как
 // подстрока внутри другого слова. Критично для "квадрат": простой
@@ -17,12 +17,12 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 // категорию сплошного квадратного проката вместо поиска труб.
 // \b не годится — Cyrillic не входит в \w по умолчанию в JS regex.
 function естьЦелоеСлово(текст, слово) {
-  const idx = текст.indexOf(слово)
-  if (idx === -1) return false
-  const before = текст[idx - 1]
-  const after = текст[idx + слово.length]
-  const этоБуква = (ch) => !!ch && /[a-zа-яё]/i.test(ch)
-  return !этоБуква(before) && !этоБуква(after)
+  const idx = текст.indexOf(слово);
+  if (idx === -1) return false;
+  const before = текст[idx - 1];
+  const after = текст[idx + слово.length];
+  const этоБуква = (ch) => !!ch && /[a-zа-яё]/i.test(ch);
+  return !этоБуква(before) && !этоБуква(after);
 }
 
 // Компактное представление варианта для логов — только то, что нужно
@@ -35,7 +35,7 @@ function краткоДляЛога(v) {
     длина: v.длина || null,
     смц: v.смц,
     цена_от_1т: v.цена_от_1т,
-  }
+  };
 }
 
 // Группы эквивалентных обозначений одной и той же марки стали.
@@ -47,55 +47,77 @@ const MARK_GROUPS = [
   // сталь. С245/С255 — современное обозначение классов прочности той же
   // стали, что раньше маркировалась просто "Ст3" (актуально для балок,
   // швеллера, уголка).
-  { canon: '3', patterns: [/^ст ?1-3/, /^ст ?3(?!\d)/, /^с ?3(?!\d)/, /^3(пс|сп)?$/, /^с ?255/, /^с ?245/] },
-  { canon: '08', patterns: [/^ст ?08/, /^08(пс|сп)?$/] },
+  {
+    canon: "3",
+    patterns: [
+      /^ст ?1-3/,
+      /^ст ?3(?!\d)/,
+      /^с ?3(?!\d)/,
+      /^3(пс|сп)?$/,
+      /^с ?255/,
+      /^с ?245/,
+    ],
+  },
+  { canon: "08", patterns: [/^ст ?08/, /^08(пс|сп)?$/] },
   // Арматура периодического профиля (рифлёная): А3 = А400 = А500 = А500С —
   // разные системы обозначения одного и того же класса прочности
-  { canon: 'a3', patterns: [/^а ?3$/, /^а ?400/, /^а ?500/] },
+  { canon: "a3", patterns: [/^а ?3$/, /^а ?400/, /^а ?500/] },
   // Арматура гладкого профиля: А1 = А240 = А240С
-  { canon: 'a1', patterns: [/^а ?1$/, /^а ?240/] },
+  { canon: "a1", patterns: [/^а ?1$/, /^а ?240/] },
   // Низколегированная сталь (балка/швеллер/уголок): 09Г2С = С345 = С355
-  { canon: 'nl3', patterns: [/^09г2с/, /^с ?345/, /^с ?355/] },
-]
+  { canon: "nl3", patterns: [/^09г2с/, /^с ?345/, /^с ?355/] },
+];
 
 function нормализуйМарку(марка) {
-  const базовая = (марка || '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
+  const базовая = (марка || "").toLowerCase().replace(/\s+/g, " ").trim();
 
   for (const группа of MARK_GROUPS) {
-    if (группа.patterns.some(p => p.test(базовая))) {
-      return группа.canon
+    if (группа.patterns.some((p) => p.test(базовая))) {
+      return группа.canon;
     }
   }
 
   // Для остальных марок (09Г2С, А500, Ст20 и т.п.) — прежнее
   // упрощённое сравнение: убираем "ст" и пробелы
-  return базовая.replace(/ст/g, '').replace(/\s/g, '').trim()
+  return базовая.replace(/ст/g, "").replace(/\s/g, "").trim();
 }
 
 // Паттерны URL для листов — категория определяется параметром "толщина".
 // Страница включает ВСЕ марки данной толщины (не только Ст3),
 // финальный отбор нужной марки делает filterVariants.
 const CATEGORY_URLS = {
-  'лист г/к': (толщина) => `https://mc.ru/metalloprokat/stal_listovaya_g_k/r1/${толщина}`,
-  'лист х/к': (толщина) => `https://mc.ru/metalloprokat/stal_listovaya_h_k/r1/${толщина}`,
-}
+  "лист г/к": (толщина) =>
+    `https://mc.ru/metalloprokat/stal_listovaya_g_k/r1/${толщина}`,
+  "лист х/к": (толщина) =>
+    `https://mc.ru/metalloprokat/stal_listovaya_h_k/r1/${толщина}`,
+  "лист рифленый": (толщина) =>
+    `https://mc.ru/metalloprokat/list_riflenyj/r1/${толщина}`,
+};
 
-// Определяет г/к или х/к лист по тексту — учитывает и аббревиатуру
-// ("г/к"), и полное слово ("горячекатаный"/"горячекатаная"), т.к. парсер
-// не всегда выдаёт одну и ту же формулировку (зависит от порядка слов в
-// исходной заявке). Обязательно требуем слово "лист" рядом, чтобы не
-// зацепить "горячекатаный круг"/"горячекатаный уголок" и т.п.
+// Определяет г/к, х/к или рифлёный лист по тексту — учитывает и
+// аббревиатуру ("г/к"), и полное слово ("горячекатаный"/"горячекатаная"),
+// т.к. парсер не всегда выдаёт одну и ту же формулировку (зависит от
+// порядка слов в исходной заявке). Обязательно требуем слово "лист"
+// рядом, чтобы не зацепить "горячекатаный круг"/"горячекатаный уголок" и т.п.
 function этоЛистКатегории(текст, тип) {
-  if (!естьЦелоеСлово(текст, 'лист')) return false
-  if (тип === 'г/к') {
-    return текст.includes('г/к') || естьЦелоеСлово(текст, 'горячекатаный') ||
-      естьЦелоеСлово(текст, 'горячекатаная') || естьЦелоеСлово(текст, 'горячекатанный')
+  if (!естьЦелоеСлово(текст, "лист")) return false;
+  if (тип === "г/к") {
+    return (
+      текст.includes("г/к") ||
+      естьЦелоеСлово(текст, "горячекатаный") ||
+      естьЦелоеСлово(текст, "горячекатаная") ||
+      естьЦелоеСлово(текст, "горячекатанный")
+    );
   }
-  return текст.includes('х/к') || естьЦелоеСлово(текст, 'холоднокатаный') ||
-    естьЦелоеСлово(текст, 'холоднокатаная')
+  if (тип === "х/к") {
+    return (
+      текст.includes("х/к") ||
+      естьЦелоеСлово(текст, "холоднокатаный") ||
+      естьЦелоеСлово(текст, "холоднокатаная")
+    );
+  }
+  // рифленый
+  return текст.includes("рифлен");
 }
 
 // Паттерны URL для сортового проката — категория определяется номером
@@ -104,39 +126,45 @@ function этоЛистКатегории(текст, тип) {
 // прямо из текста запроса/названия. Страница включает сразу и П, и У —
 // нужный вариант дальше выберет filterVariants по букве.
 const SHAPE_CATEGORY_URLS = {
-  'швеллер': (номер) => `https://mc.ru/metalloprokat/shveller_katan/r1/${номер}`,
-  'квадрат': (номер) => `https://mc.ru/metalloprokat/kvadrat_goryachekatanyj/r1/${номер}`,
-}
+  швеллер: (номер) => `https://mc.ru/metalloprokat/shveller_katan/r1/${номер}`,
+  квадрат: (номер) =>
+    `https://mc.ru/metalloprokat/kvadrat_goryachekatanyj/r1/${номер}`,
+  полоса: (ширина) => `https://mc.ru/metalloprokat/polosa_g_k/r1/${ширина}`
+};
 
 // Достаёт номер профиля из текста вида "швеллер 16 П" или
 // "швеллер низколегированный 16у" — число сразу после ключевого слова,
 // игнорируя любые слова между ключом и числом.
 function extractShapeNumber(текст, ключ) {
-  const регулярка = new RegExp(`${ключ}[^0-9]*([\\d.]+)`, 'i')
-  const match = текст.match(регулярка)
-  return match ? match[1] : null
+  const регулярка = new RegExp(`${ключ}[^0-9]*([\\d.]+)`, "i");
+  const match = текст.match(регулярка);
+  return match ? match[1] : null;
 }
 
 // Паттерны URL для арматуры — категория определяется диаметром
 // (параметр "диаметр" уже извлекается парсером) и классом профиля:
 // рифлёная (А3=А400=А500=А500С) или гладкая (А1=А240) — см. MARK_GROUPS.
 const ARMATURE_CATEGORY_URLS = {
-  a3: (диаметр) => `https://mc.ru/metalloprokat/armatura_riflenaya_a3/r1/${диаметр}`,
-  a1: (диаметр) => `https://mc.ru/metalloprokat/armatura_gladkaya_a1/r1/${диаметр}`,
-}
+  a3: (диаметр) =>
+    `https://mc.ru/metalloprokat/armatura_riflenaya_a3/r1/${диаметр}`,
+  a1: (диаметр) =>
+    `https://mc.ru/metalloprokat/armatura_gladkaya_a1/r1/${диаметр}`,
+};
 
 // Круг г/к — категория определяется параметром "диаметр" напрямую
 // (в отличие от квадрата/швеллера, парсер извлекает диаметр круга в
 // отдельное поле, как и для арматуры/труб)
-const КРУГ_CATEGORY_URL = (диаметр) => `https://mc.ru/metalloprokat/krug_g_k/r1/${диаметр}`
+const КРУГ_CATEGORY_URL = (диаметр) =>
+  `https://mc.ru/metalloprokat/krug_g_k/r1/${диаметр}`;
 
 // Балка (двутавр) — категория определяется номером профиля (как у
 // швеллера — из текста, отдельного параметра нет) + классом стали:
 // обычная (Ст3=С255=С245) или низколегированная (09Г2С=С345=С355).
 const BALKA_CATEGORY_URLS = {
-  '3': (номер) => `https://mc.ru/metalloprokat/balki_dvutavrovye/r1/${номер}`,
-  nl3: (номер) => `https://mc.ru/metalloprokat/balki_dvutavrovye_nizkolegirovannye/r1/${номер}`,
-}
+  3: (номер) => `https://mc.ru/metalloprokat/balki_dvutavrovye/r1/${номер}`,
+  nl3: (номер) =>
+    `https://mc.ru/metalloprokat/balki_dvutavrovye_nizkolegirovannye/r1/${номер}`,
+};
 
 // "Двутавр" — синоним "балки", который менеджеры иногда используют в
 // заявке, но который никогда не встречается в названии товара на сайте
@@ -144,85 +172,95 @@ const BALKA_CATEGORY_URLS = {
 // распознавания и извлечения номера, а итоговая форма для сверки с
 // названием товара — всегда 'балка'.
 function определиФормуБалки(текст) {
-  if (естьЦелоеСлово(текст, 'балка')) return 'балка'
-  if (естьЦелоеСлово(текст, 'двутавр')) return 'балка'
-  return null
+  if (естьЦелоеСлово(текст, "балка")) return "балка";
+  if (естьЦелоеСлово(текст, "двутавр")) return "балка";
+  return null;
 }
 
 // Определяем можно ли искать по URL категории
 function getCategoryUrl(position) {
-  const название = (position.название || '').toLowerCase()
-  const запрос = (position.поисковый_запрос || '').toLowerCase()
-  const толщина = position.параметры?.толщина
-  const диаметр = position.параметры?.диаметр
-
+  const название = (position.название || "").toLowerCase();
+  const запрос = (position.поисковый_запрос || "").toLowerCase();
+  const толщина = position.параметры?.толщина;
+  const диаметр = position.параметры?.диаметр;
+  const текст = `${запрос} ${название}`;
   // Листы — категория по толщине
   if (толщина) {
     for (const [ключ, urlFn] of Object.entries(CATEGORY_URLS)) {
       // ключ вида 'лист г/к' → извлекаем тип 'г/к' для этоЛистКатегории
-      const тип = ключ.replace('лист ', '')
+      const тип = ключ.replace("лист ", "");
       // Проверяем и "название" (обычно = как менеджер написал в заявке),
       // и "поисковый_запрос" (может быть подменён словарём searchMap.json
       // на другую формулировку — тогда проверка по одному полю не сработала бы)
-      const совпадает = этоЛистКатегории(название, тип) || этоЛистКатегории(запрос, тип)
-      if (совпадает) return urlFn(толщина)
+      const совпадает =
+        этоЛистКатегории(название, тип) || этоЛистКатегории(запрос, тип);
+      if (совпадает) return urlFn(толщина);
     }
   }
 
   // Арматура — категория по диаметру + классу профиля. Без распознанного
   // класса (марка не задана или не входит в известные группы) не рискуем
   // угадывать рифлёная/гладкая — уходим в глобальный поиск.
-  const этоАрматура = название.includes('арматура') || запрос.includes('арматура')
+  const этоАрматура =
+    название.includes("арматура") || запрос.includes("арматура");
   if (этоАрматура && диаметр) {
-    const класс = нормализуйМарку(position.параметры?.марка)
-    const urlFn = ARMATURE_CATEGORY_URLS[класс]
-    if (urlFn) return urlFn(диаметр)
+    const класс = нормализуйМарку(position.параметры?.марка);
+    const urlFn = ARMATURE_CATEGORY_URLS[класс];
+    if (urlFn) return urlFn(диаметр);
   }
 
   // Круг г/к — категория по диаметру. Основной источник — параметр
   // "диаметр" из парсера; если вдруг не заполнен (модель иногда пропускает
   // это поле) — подстраховываемся и достаём число прямо из текста, как
   // для швеллера/квадрата.
-  const этоКруг = (естьЦелоеСлово(название, 'круг') || естьЦелоеСлово(запрос, 'круг')) &&
-                  !этоАрматура // на всякий случай не путаем с "кругляк" внутри других названий
+  const этоКруг =
+    (естьЦелоеСлово(название, "круг") || естьЦелоеСлово(запрос, "круг")) &&
+    !этоАрматура; // на всякий случай не путаем с "кругляк" внутри других названий
   if (этоКруг) {
-    const диаметрКруга = диаметр || extractShapeNumber(
-      естьЦелоеСлово(запрос, 'круг') ? запрос : название, 'круг'
-    )
-    if (диаметрКруга) return КРУГ_CATEGORY_URL(диаметрКруга)
+    const диаметрКруга =
+      диаметр ||
+      extractShapeNumber(
+        естьЦелоеСлово(запрос, "круг") ? запрос : название,
+        "круг",
+      );
+    if (диаметрКруга) return КРУГ_CATEGORY_URL(диаметрКруга);
   }
 
   // Балка (двутавр) — категория по номеру профиля + классу стали.
   // Если марка не указана явно — по умолчанию считаем обычную сталь
   // (Ст3/С255/С245), если только в тексте нет явного намёка на
   // низколегированную (09Г2С/С345/С355/"низколегир").
-  const формаБалкиЗапроса = определиФормуБалки(запрос)
-  const формаБалкиНазвания = определиФормуБалки(название)
+  const формаБалкиЗапроса = определиФормуБалки(запрос);
+  const формаБалкиНазвания = определиФормуБалки(название);
   if (формаБалкиЗапроса || формаБалкиНазвания) {
     // Приоритет: структурный параметры.номер (не зависит от текста вообще,
     // заполняется парсером напрямую) → название → запрос. Текстовые поля
     // могут быть искажены словарём searchMap.json ОБА СРАЗУ (например
     // "Балка низколегированная Б2" вместо "Балка 18 Б2" — теряется номер
     // и в названии, и в запросе), поэтому структурный параметр надёжнее.
-    let номерБалки = position.параметры?.номер || null
+    let номерБалки = position.параметры?.номер || null;
 
     if (!номерБалки) {
-      const источникБалки = формаБалкиНазвания ? название : запрос
-      const ключевоеСлово = естьЦелоеСлово(источникБалки, 'балка') ? 'балка' : 'двутавр'
-      номерБалки = extractShapeNumber(источникБалки, ключевоеСлово)
+      const источникБалки = формаБалкиНазвания ? название : запрос;
+      const ключевоеСлово = естьЦелоеСлово(источникБалки, "балка")
+        ? "балка"
+        : "двутавр";
+      номерБалки = extractShapeNumber(источникБалки, ключевоеСлово);
     }
 
     if (номерБалки) {
-      let классБалки = нормализуйМарку(position.параметры?.марка)
-      if (классБалки !== '3' && классБалки !== 'nl3') {
+      let классБалки = нормализуйМарку(position.параметры?.марка);
+      if (классБалки !== "3" && классБалки !== "nl3") {
         // Марка не указана или не распознана — определяем по ключевым
         // словам в тексте, по умолчанию считаем обычную сталь
-        const весьТекст = `${запрос} ${название}`
-        классБалки = /низколегир|09г2с|с ?345|с ?355/i.test(весьТекст) ? 'nl3' : '3'
+        const весьТекст = `${запрос} ${название}`;
+        классБалки = /низколегир|09г2с|с ?345|с ?355/i.test(весьТекст)
+          ? "nl3"
+          : "3";
       }
 
-      const urlFn = BALKA_CATEGORY_URLS[классБалки]
-      if (urlFn) return urlFn(номерБалки)
+      const urlFn = BALKA_CATEGORY_URLS[классБалки];
+      if (urlFn) return urlFn(номерБалки);
     }
   }
 
@@ -231,82 +269,105 @@ function getCategoryUrl(position) {
   // запасной вариант. ВАЖНО: проверяем целое слово, а не .includes() —
   // иначе "квадрат" ложно матчится внутри "квадратные" (профильные
   // трубы), из-за чего трубы улетали в категорию сплошного квадрата.
-  for (const [ключ, urlFn] of Object.entries(SHAPE_CATEGORY_URLS)) {
-    const источник = естьЦелоеСлово(запрос, ключ) ? запрос
-      : (естьЦелоеСлово(название, ключ) ? название : null)
-    if (!источник) continue
+for (const [ключ, urlFn] of Object.entries(SHAPE_CATEGORY_URLS)) {
+  const источник = естьЦелоеСлово(запрос, ключ)
+    ? запрос
+    : естьЦелоеСлово(название, ключ)
+      ? название
+      : null;
+  if (!источник) continue;
 
-    const номер = position.параметры?.номер || extractShapeNumber(источник, ключ)
-    if (номер) return urlFn(номер)
+  // Для полосы используем ширину, для остальных - номер
+  let параметр;
+  if (ключ === 'полоса') {
+    параметр = position.параметры?.ширина || extractShapeNumber(источник, ключ);
+  } else {
+    параметр = position.параметры?.номер || extractShapeNumber(источник, ключ);
   }
-
-  return null
+  
+  if (параметр) return urlFn(параметр);
 }
 
+// --- НОВЫЙ БЛОК ДЛЯ ПОЛОСЫ ---
+if (естьЦелоеСлово(запрос, "полоса") || естьЦелоеСлово(название, "полоса")) {
+  let ширина = position.параметры?.ширина;
+  if (!ширина) {
+    const match = текст.match(/полоса\s*(\d+)/i); // ❌ текст не определен!
+    ширина = match ? match[1] : null;
+  }
+  if (ширина) {
+    return `https://mc.ru/metalloprokat/polosa_g_k/r1/${ширина}`;
+  }
+}
+  return null;
+}
 
 async function searchPosition(query, position = {}) {
-  const page = await getPage()
+  const page = await getPage();
 
   // Проверяем можно ли искать по URL категории
-  const categoryUrl = getCategoryUrl(position)
+  const categoryUrl = getCategoryUrl(position);
 
   if (categoryUrl) {
-    logger.info('Ищем по URL категории', { url: categoryUrl })
-    const result = await searchByUrl(categoryUrl, position, page)
+    logger.info("Ищем по URL категории", { url: categoryUrl });
+    const result = await searchByUrl(categoryUrl, position, page);
 
     if (result.found) {
-      return result
+      return result;
     }
 
     // Fallback: по URL категории ничего не нашли (например, толщины
     // нет в этой категории, страница пустая и т.п.) — пробуем глобальный поиск
-    logger.warn('По URL категории не найдено — пробуем глобальный поиск', {
+    logger.warn("По URL категории не найдено — пробуем глобальный поиск", {
       query,
       url: categoryUrl,
-    })
-    return await searchByGlobal(query, position, page)
+    });
+    return await searchByGlobal(query, position, page);
   }
 
   // Иначе — глобальный поиск
-  logger.info('Ищем позицию', { query })
-  return await searchByGlobal(query, position, page)
+  logger.info("Ищем позицию", { query });
+  return await searchByGlobal(query, position, page);
 }
 
 // Скрапит строки текущей открытой страницы таблицы результатов
 async function scrapeTableRows(page) {
-  return await page.$$eval('table tbody tr', rows => {
+  return await page.$$eval("table tbody tr", (rows) => {
     function parsePrice(text) {
-      if (!text) return null
-      const match = text.match(/[\d\s]+/)
-      if (!match) return null
-      return parseInt(match[0].replace(/\s/g, ''), 10)
+      if (!text) return null;
+      const match = text.match(/[\d\s]+/);
+      if (!match) return null;
+      return parseInt(match[0].replace(/\s/g, ""), 10);
     }
 
-    return rows.map(row => {
-      const cells = row.querySelectorAll('td')
-      // Цена "за кг" вместо "за т" — встречается у алюминия и, возможно,
-      // у другой мелкой номенклатуры. Сканируем всю строку целиком (а не
-      // конкретную ячейку), т.к. точная позиция этой подписи в разметке
-      // не гарантирована. Если это "за кг" — цена_от_1т на самом деле
-      // цена за килограмм и НЕЛЬЗЯ напрямую сравнивать с ценами за тонну.
-      const заКг = /за\s*кг|руб\s*\/\s*кг|\/\s*кг\b/i.test(row.innerText || '')
+    return rows
+      .map((row) => {
+        const cells = row.querySelectorAll("td");
+        // Цена "за кг" вместо "за т" — встречается у алюминия и, возможно,
+        // у другой мелкой номенклатуры. Сканируем всю строку целиком (а не
+        // конкретную ячейку), т.к. точная позиция этой подписи в разметке
+        // не гарантирована. Если это "за кг" — цена_от_1т на самом деле
+        // цена за килограмм и НЕЛЬЗЯ напрямую сравнивать с ценами за тонну.
+        const заКг = /за\s*кг|руб\s*\/\s*кг|\/\s*кг\b/i.test(
+          row.innerText || "",
+        );
 
-      return {
-        название: cells[0]?.innerText?.trim(),
-        размер: cells[1]?.innerText?.trim(),
-        марка: cells[2]?.innerText?.trim(),
-        длина: cells[3]?.innerText?.trim(),
-        смц: cells[4]?.innerText?.trim(),
-        остаток: cells[5]?.innerText?.trim(),
-        цена_от_1т: parsePrice(cells[8]?.innerText),
-        цена_от_5т: parsePrice(cells[9]?.innerText),
-        цена_от_10т: parsePrice(cells[10]?.innerText),
-        заКг,
-      }
-    }).filter(row => row.название && row.цена_от_1т)
-  })
+        return {
+          название: cells[0]?.innerText?.trim(),
+          размер: cells[1]?.innerText?.trim(),
+          марка: cells[2]?.innerText?.trim(),
+          длина: cells[3]?.innerText?.trim(),
+          смц: cells[4]?.innerText?.trim(),
+          остаток: cells[5]?.innerText?.trim(),
+          цена_от_1т: parsePrice(cells[8]?.innerText),
+          цена_от_5т: parsePrice(cells[9]?.innerText),
+          цена_от_10т: parsePrice(cells[10]?.innerText),
+          заКг,
+        };
+      })
+      .filter((row) => row.название && row.цена_от_1т);
+  });
 }
-
 
 // Читает ссылки пагинации из блока .catalogPaginator (структура подтверждена
 // на реальной странице mc.ru: <li><a href="/.../PageN/2">2</a></li> и т.п.,
@@ -314,44 +375,48 @@ async function scrapeTableRows(page) {
 // Возвращает абсолютные URL.
 async function getPaginationLinks(page) {
   const hrefs = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('.catalogPaginator ul li a[href]'))
-    return links.map(a => a.getAttribute('href')).filter(Boolean)
-  })
+    const links = Array.from(
+      document.querySelectorAll(".catalogPaginator ul li a[href]"),
+    );
+    return links.map((a) => a.getAttribute("href")).filter(Boolean);
+  });
 
-  return Array.from(new Set(hrefs.map(href => new URL(href, 'https://mc.ru').toString())))
+  return Array.from(
+    new Set(hrefs.map((href) => new URL(href, "https://mc.ru").toString())),
+  );
 }
 
 async function searchByUrl(url, position, page) {
-  const MAX_PAGES = 10
-  let allRows = []
-  const visited = new Set([url])
-  const queue = [url]
-  let i = 0
+  const MAX_PAGES = 10;
+  let allRows = [];
+  const visited = new Set([url]);
+  const queue = [url];
+  let i = 0;
 
   while (i < queue.length && i < MAX_PAGES) {
-    const currentUrl = queue[i]
+    const currentUrl = queue[i];
 
-    await page.goto(currentUrl)
-    await page.waitForLoadState('domcontentloaded')
-    await delay(1500)
+    await page.goto(currentUrl);
+    await page.waitForLoadState("domcontentloaded");
+    await delay(1500);
 
-    const tableExists = await page.$('table tbody tr').catch(() => null)
+    const tableExists = await page.$("table tbody tr").catch(() => null);
 
     if (!tableExists) {
       if (i === 0) {
-        logger.warn('Таблица не найдена по URL', { url })
-        return { found: false, query: url }
+        logger.warn("Таблица не найдена по URL", { url });
+        return { found: false, query: url };
       }
-      i++
-      continue
+      i++;
+      continue;
     }
 
-    const rows = await scrapeTableRows(page)
-    allRows.push(...rows)
+    const rows = await scrapeTableRows(page);
+    allRows.push(...rows);
 
-    const filtered = filterVariants(rows, position)
+    const filtered = filterVariants(rows, position);
 
-    logger.info('Страница обработана', {
+    logger.info("Страница обработана", {
       url: currentUrl,
       page: i + 1,
       count: rows.length,
@@ -363,85 +428,106 @@ async function searchByUrl(url, position, page) {
       ...(filtered.length === 0 && rows.length > 0
         ? { сэмплДоФильтрации: rows.slice(0, 5).map(краткоДляЛога) }
         : {}),
-    })
+    });
 
     if (filtered.length > 0) {
-      const withSourceUrl = filtered.map(v => ({ ...v, sourceUrl: currentUrl }))
-      return { found: true, query: url, variants: withSourceUrl, rawRows: rows }
+      const withSourceUrl = filtered.map((v) => ({
+        ...v,
+        sourceUrl: currentUrl,
+      }));
+      return {
+        found: true,
+        query: url,
+        variants: withSourceUrl,
+        rawRows: rows,
+      };
     }
 
     // Подтягиваем ссылки пагинации с этой страницы — добавляем новые в очередь
-    const paginationLinks = await getPaginationLinks(page)
+    const paginationLinks = await getPaginationLinks(page);
     for (const link of paginationLinks) {
       if (!visited.has(link)) {
-        visited.add(link)
-        queue.push(link)
+        visited.add(link);
+        queue.push(link);
       }
     }
 
-    i++
+    i++;
   }
 
-  const filteredAll = filterVariants(allRows, position)
-  const filteredAllWithSourceUrl = filteredAll.map(v => ({ ...v, sourceUrl: url }))
+  const filteredAll = filterVariants(allRows, position);
+  const filteredAllWithSourceUrl = filteredAll.map((v) => ({
+    ...v,
+    sourceUrl: url,
+  }));
 
-  logger.info('После перебора всех страниц', {
+  logger.info("После перебора всех страниц", {
     url,
     totalPages: queue.length,
     totalRows: allRows.length,
     filtered: filteredAll.length,
-  })
+  });
 
-  return { found: filteredAllWithSourceUrl.length > 0, query: url, variants: filteredAllWithSourceUrl, rawRows: allRows }
+  return {
+    found: filteredAllWithSourceUrl.length > 0,
+    query: url,
+    variants: filteredAllWithSourceUrl,
+    rawRows: allRows,
+  };
 }
 
 async function searchByGlobal(query, position, page) {
   // Возвращаемся на главную перед каждым поиском
-  await page.goto('https://mc.ru')
-  await page.waitForLoadState('domcontentloaded')
-  await delay(500)
+  await page.goto("https://mc.ru");
+  await page.waitForLoadState("domcontentloaded");
+  await delay(500);
 
   // Открываем поиск
   await page.evaluate(() => {
-    document.querySelector('#searchField').click()
-  })
-  await delay(300)
+    document.querySelector("#searchField").click();
+  });
+  await delay(300);
 
   // Вводим запрос
-  await page.waitForSelector('input[name="referal"]', { state: 'visible' })
-  await page.fill('input[name="referal"]', query)
-  await delay(300)
+  await page.waitForSelector('input[name="referal"]', { state: "visible" });
+  await page.fill('input[name="referal"]', query);
+  await delay(300);
 
   // Нажимаем Enter
-  await page.press('input[name="referal"]', 'Enter')
-  await page.waitForLoadState('domcontentloaded')
-  await delay(2000)
+  await page.press('input[name="referal"]', "Enter");
+  await page.waitForLoadState("domcontentloaded");
+  await delay(2000);
 
   // Проверяем нашлось ли что-то
-  const notFound = await page.$('text=Наименование не найдено в каталоге')
+  const notFound = await page.$("text=Наименование не найдено в каталоге");
   if (notFound) {
-    logger.warn('Позиция не найдена', { query })
-    return { found: false, query }
+    logger.warn("Позиция не найдена", { query });
+    return { found: false, query };
   }
 
-  const tableExists = await page.$('table tbody tr').catch(() => null)
+  const tableExists = await page.$("table tbody tr").catch(() => null);
   if (!tableExists) {
-    logger.warn('Таблица не найдена', { query })
-    return { found: false, query }
+    logger.warn("Таблица не найдена", { query });
+    return { found: false, query };
   }
 
-  const rows = await scrapeTableRows(page)
+  const rows = await scrapeTableRows(page);
 
-  console.log('Найденные строки до фильтрации:')
-  rows.slice(0, 3).forEach(r => console.log(r.название, '|', r.марка, '|', r.смц))
+  console.log("Найденные строки до фильтрации:");
+  rows
+    .slice(0, 3)
+    .forEach((r) => console.log(r.название, "|", r.марка, "|", r.смц));
 
-  logger.info('Найдено вариантов', { query, count: rows.length })
+  logger.info("Найдено вариантов", { query, count: rows.length });
 
-  const filtered = filterVariants(rows, position)
-  const resultsPageUrl = page.url()
-  const filteredWithSourceUrl = filtered.map(v => ({ ...v, sourceUrl: resultsPageUrl }))
+  const filtered = filterVariants(rows, position);
+  const resultsPageUrl = page.url();
+  const filteredWithSourceUrl = filtered.map((v) => ({
+    ...v,
+    sourceUrl: resultsPageUrl,
+  }));
 
-  logger.info('Найдено вариантов после фильтрации', {
+  logger.info("Найдено вариантов после фильтрации", {
     query,
     total: rows.length,
     filtered: filteredWithSourceUrl.length,
@@ -449,9 +535,14 @@ async function searchByGlobal(query, position, page) {
     ...(filteredWithSourceUrl.length === 0 && rows.length > 0
       ? { сэмплДоФильтрации: rows.slice(0, 5).map(краткоДляЛога) }
       : {}),
-  })
+  });
 
-  return { found: filteredWithSourceUrl.length > 0, query, variants: filteredWithSourceUrl, rawRows: rows }
+  return {
+    found: filteredWithSourceUrl.length > 0,
+    query,
+    variants: filteredWithSourceUrl,
+    rawRows: rows,
+  };
 }
 
 // Оценивает ОДИН вариант против позиции — возвращает { ok: true } если
@@ -463,10 +554,15 @@ async function searchByGlobal(query, position, page) {
 // прошедших.
 function оцениВариант(v, position, контекст) {
   const {
-    запросНижний, названиеПозиции, маркаПозиции,
-    нужнаНержавейка, нужнаНизколег, нуженМоток,
-    нуженАлюминий, нуженКалиброванный,
-  } = контекст
+    запросНижний,
+    названиеПозиции,
+    маркаПозиции,
+    нужнаНержавейка,
+    нужнаНизколег,
+    нуженМоток,
+    нуженАлюминий,
+    нуженКалиброванный,
+  } = контекст;
 
   // Нормализуем ВСЕ виды пробельных символов (обычный, неразрывный
   // \u00A0 и т.п.) в обычный пробел. На практике title с сайта иногда
@@ -474,76 +570,103 @@ function оцениВариант(v, position, контекст) {
   // в "Швеллер 20 П"), которые выглядят как обычный пробел, но могут
   // повести себя иначе при сравнении — из-за этого позиция не находилась,
   // хотя визуально всё совпадало.
-  const название = v.название.toLowerCase().replace(/\s+/g, ' ')
-  const маркаВарианта = (v.марка || '').toLowerCase()
+  const название = v.название.toLowerCase().replace(/\s+/g, " ");
+  const маркаВарианта = (v.марка || "").toLowerCase();
 
   // Цена "за кг" вместо "за т" — исключаем БЕЗУСЛОВНО, независимо от
   // материала. Это не про алюминий конкретно, а про единицу измерения
   // цены: цена_от_1т для такой строки на самом деле цена за килограмм
   // (например 476 = 476 руб/кг = 476 000 руб/т), и прямое сравнение с
   // ценами за тонну всегда даёт неверный "самый дешёвый" вариант.
-  if (v.заКг) return { ok: false, причина: 'цена указана за кг, а не за тонну' }
+  if (v.заКг)
+    return { ok: false, причина: "цена указана за кг, а не за тонну" };
 
   // Убираем алюминий если явно не просили — цена там ТОЖЕ обычно за кг
   // (см. выше), но это дополнительная защита по названию/марке на
   // случай, если подпись "за кг" не была обнаружена в разметке строки
-  const этоАлюминий = название.includes('алюмини') ||
-                      маркаВарианта.includes('амг') || маркаВарианта.includes('ад31') ||
-                      маркаВарианта.includes('д16') || маркаВарианта.includes('в95')
-  if (этоАлюминий && !нуженАлюминий) return { ok: false, причина: 'алюминий, а не сталь' }
+  const этоАлюминий =
+    название.includes("алюмини") ||
+    маркаВарианта.includes("амг") ||
+    маркаВарианта.includes("ад31") ||
+    маркаВарианта.includes("д16") ||
+    маркаВарианта.includes("в95");
+  if (этоАлюминий && !нуженАлюминий)
+    return { ok: false, причина: "алюминий, а не сталь" };
 
   // Убираем калиброванную/холоднотянутую сталь если явно не просили —
   // отдельная товарная категория, в разы дороже обычного проката
-  const этоКалиброванный = название.includes('калиброван') || название.includes('холоднотянут')
+  const этоКалиброванный =
+    название.includes("калиброван") || название.includes("холоднотянут");
   if (этоКалиброванный && !нуженКалиброванный) {
-    return { ok: false, причина: 'калиброванная/холоднотянутая сталь — другая товарная категория' }
+    return {
+      ok: false,
+      причина: "калиброванная/холоднотянутая сталь — другая товарная категория",
+    };
   }
 
   // Убираем нержавейку если не нужна
-  const этоНержавейка = название.includes('нержавеющ') ||
-                        название.includes('aisi') ||
-                        название.includes('нерж')
-  if (этоНержавейка && !нужнаНержавейка) return { ok: false, причина: 'нержавеющая сталь не запрошена' }
+  const этоНержавейка =
+    название.includes("нержавеющ") ||
+    название.includes("aisi") ||
+    название.includes("нерж");
+  if (этоНержавейка && !нужнаНержавейка)
+    return { ok: false, причина: "нержавеющая сталь не запрошена" };
 
   // Убираем низколегированные если не нужны
-  const этоНизколег = название.includes('низколегир')
-  if (этоНизколег && !нужнаНизколег) return { ok: false, причина: 'низколегированная сталь не запрошена' }
+  const этоНизколег = название.includes("низколегир");
+  if (этоНизколег && !нужнаНизколег)
+    return { ok: false, причина: "низколегированная сталь не запрошена" };
 
   // Убираем мотки/бухты, если явно не просили именно моток —
   // при заказе в тоннах/метрах по умолчанию нужен прямой пруток.
   // Проверяем и "моток" (им.п.), и "мотк" (все остальные падежи —
   // мотка/мотки/мотках, из-за беглой гласной "моток" их не покрывает)
-  const этоМоток = название.includes('моток') || название.includes('мотк') ||
-                   название.includes('бухт')
-  if (этоМоток && !нуженМоток) return { ok: false, причина: 'моток/бухта, а не прямой пруток' }
+  const этоМоток =
+    название.includes("моток") ||
+    название.includes("мотк") ||
+    название.includes("бухт");
+  if (этоМоток && !нуженМоток)
+    return { ok: false, причина: "моток/бухта, а не прямой пруток" };
 
   // Убираем соединительные детали если ищем трубы
-  const искомТрубу = запросНижний.includes('труб') ||
-                     запросНижний.includes('эсв') ||
-                     названиеПозиции.includes('труб')
+  const искомТрубу =
+    запросНижний.includes("труб") ||
+    запросНижний.includes("эсв") ||
+    названиеПозиции.includes("труб");
   if (искомТрубу) {
-    const этоФитинг = название.includes('тройник') ||
-                      название.includes('соединительные детали') ||
-                      название.includes('фитинг') ||
-                      название.includes('муфта') ||
-                      название.includes('переход') ||
-                      название.includes('патрубок') ||
-                      название.includes('отвод')
-    if (этоФитинг) return { ok: false, причина: 'соединительная деталь (фитинг), а не труба' }
+    const этоФитинг =
+      название.includes("тройник") ||
+      название.includes("соединительные детали") ||
+      название.includes("фитинг") ||
+      название.includes("муфта") ||
+      название.includes("переход") ||
+      название.includes("патрубок") ||
+      название.includes("отвод");
+    if (этоФитинг)
+      return {
+        ok: false,
+        причина: "соединительная деталь (фитинг), а не труба",
+      };
   }
 
   // Убираем ТУ-спецификации для арматуры, если явно не просили именно ТУ —
   // на практике такие позиции (нестандартные технические условия вместо
   // ГОСТ) чаще оказываются с неточным/нулевым остатком на складе
-  const нуженТУ = запросНижний.includes(' ту ') || запросНижний.includes('ту ')
-  const этоТУ = маркаВарианта.startsWith('ту ') || маркаВарианта.startsWith('ту38') ||
-               маркаВарианта.startsWith('ту-')
-  if (этоТУ && !нуженТУ) return { ok: false, причина: 'ТУ-спецификация вместо ГОСТ (риск нулевого остатка)' }
+  const нуженТУ = запросНижний.includes(" ту ") || запросНижний.includes("ту ");
+  const этоТУ =
+    маркаВарианта.startsWith("ту ") ||
+    маркаВарианта.startsWith("ту38") ||
+    маркаВарианта.startsWith("ту-");
+  if (этоТУ && !нуженТУ)
+    return {
+      ok: false,
+      причина: "ТУ-спецификация вместо ГОСТ (риск нулевого остатка)",
+    };
 
   // Фильтр по марке стали если указана
   if (маркаПозиции) {
-    const маркаНорм = нормализуйМарку(маркаПозиции)
-    const этоКлассАрматуры = маркаНорм === 'a3' || маркаНорм === 'a1'
+    const маркаНорм = нормализуйМарку(маркаПозиции);
+    const этоКлассАрматуры = маркаНорм === "a3" || маркаНорм === "a1";
 
     if (этоКлассАрматуры) {
       // Для класса арматуры (А1/А3/А500С/А240) колонка "марка" в таблице
@@ -552,191 +675,311 @@ function оцениВариант(v, position, контекст) {
       // Марка есть в отдельной колонке таблицы — сравниваем строго по
       // канонической форме. Допускаем суффикс партии/поставки через дефис
       // (09Г2С-12, 09Г2С-15 и т.п.) — это варианты той же марки.
-      const маркаВарНорм = нормализуйМарку(маркаВарианта)
-      const маркиСовпадают = маркаВарНорм === маркаНорм ||
-                             маркаВарНорм.startsWith(`${маркаНорм}-`)
+      const маркаВарНорм = нормализуйМарку(маркаВарианта);
+      const маркиСовпадают =
+        маркаВарНорм === маркаНорм || маркаВарНорм.startsWith(`${маркаНорм}-`);
       if (!маркиСовпадают) {
-        return { ok: false, причина: `марка не совпадает (запрошено "${маркаПозиции}", тут "${v.марка}")` }
+        return {
+          ok: false,
+          причина: `марка не совпадает (запрошено "${маркаПозиции}", тут "${v.марка}")`,
+        };
       }
     } else {
       // Колонки с маркой нет (или пустая) — ищем в названии
-      const группа = MARK_GROUPS.find(г => г.canon === маркаНорм)
-      let найдено
+      const группа = MARK_GROUPS.find((г) => г.canon === маркаНорм);
+      let найдено;
       if (группа) {
-        найдено = группа.patterns.some(p => {
-          const source = p.source.replace(/^\^/, '').replace(/\$$/, '')
-          const токенРегулярка = new RegExp(`(^|[^a-zа-я0-9])${source}`, 'i')
-          return токенРегулярка.test(название)
-        })
+        найдено = группа.patterns.some((p) => {
+          const source = p.source.replace(/^\^/, "").replace(/\$$/, "");
+          const токенРегулярка = new RegExp(`(^|[^a-zа-я0-9])${source}`, "i");
+          return токенРегулярка.test(название);
+        });
       } else {
-        const токенРегулярка = new RegExp(`(^|[^a-zа-я0-9])${маркаНорм}([^a-zа-я0-9]|$)`, 'i')
-        найдено = токенРегулярка.test(название)
+        const токенРегулярка = new RegExp(
+          `(^|[^a-zа-я0-9])${маркаНорм}([^a-zа-я0-9]|$)`,
+          "i",
+        );
+        найдено = токенРегулярка.test(название);
       }
-      if (!найдено) return { ok: false, причина: `марка "${маркаПозиции}" не найдена в названии` }
+      if (!найдено)
+        return {
+          ok: false,
+          причина: `марка "${маркаПозиции}" не найдена в названии`,
+        };
     }
   }
 
   // Фильтр для сортового проката по номеру и формы профиля
-  const ФОРМЫ_ПРОКАТА = ['швеллер', 'уголок', 'балка', 'круг', 'полоса', 'катанка', 'квадрат']
-  const СИНОНИМЫ_ФОРМ = { 'двутавр': 'балка' }
+  const ФОРМЫ_ПРОКАТА = [
+    "швеллер",
+    "уголок",
+    "балка",
+    "круг",
+    "катанка",
+    "квадрат",
+    "полоса",
+  ];
+  const СИНОНИМЫ_ФОРМ = { двутавр: "балка" };
 
   function определиФорму(текст) {
     for (const ф of ФОРМЫ_ПРОКАТА) {
-      if (естьЦелоеСлово(текст, ф)) return ф
+      if (естьЦелоеСлово(текст, ф)) return ф;
     }
     for (const [синоним, форма] of Object.entries(СИНОНИМЫ_ФОРМ)) {
-      if (естьЦелоеСлово(текст, синоним)) return форма
+      if (естьЦелоеСлово(текст, синоним)) return форма;
     }
-    return null
+    return null;
   }
 
-  const формаЗапроса = определиФорму(запросНижний)
-  const формаПозиции = определиФорму(названиеПозиции)
-  const форма = формаЗапроса || формаПозиции
+  const формаЗапроса = определиФорму(запросНижний);
+  const формаПозиции = определиФорму(названиеПозиции);
+  const форма = формаЗапроса || формаПозиции;
 
   if (форма) {
     if (!естьЦелоеСлово(название, форма)) {
-      return { ok: false, причина: `не та форма проката (нужен "${форма}")` }
+      return { ok: false, причина: `не та форма проката (нужен "${форма}")` };
     }
-
-    const источникНомера = форма === 'балка'
-      ? (формаПозиции ? названиеПозиции : запросНижний)
-      : (формаЗапроса ? запросНижний : названиеПозиции)
+  if (форма === 'полоса' && position.параметры?.толщина) {
+    const нужнаяТолщина = String(position.параметры.толщина);
+    if (!название.includes(`х${нужнаяТолщина}`) && 
+        !название.includes(`x${нужнаяТолщина}`)) {
+      return {
+        ok: false,
+        причина: `толщина полосы не совпадает (нужна ${нужнаяТолщина})`,
+      };
+    }
+  }
+    const источникНомера =
+      форма === "балка"
+        ? формаПозиции
+          ? названиеПозиции
+          : запросНижний
+        : формаЗапроса
+          ? запросНижний
+          : названиеПозиции;
     const очищенный = источникНомера
-      .replace(/швеллер|уголок|балка|круг|полоса|катанка|квадрат|двутавр|низколегир[а-я]*/g, '')
-      .trim()
+      .replace(
+        /швеллер|уголок|балка|круг|полоса|катанка|квадрат|двутавр|низколегир[а-я]*/g,
+        "",
+      )
+      .trim();
 
-    const числоМатч = очищенный.match(/(\d+(?:[.,]\d+)?)\s*([а-я]\d{0,2})?/i)
+    const числоМатч = очищенный.match(/(\d+(?:[.,]\d+)?)\s*([а-я]\d{0,2})?/i);
 
-    const номерБезБуквы = position.параметры?.номер != null
-      ? String(position.параметры.номер)
-      : (числоМатч ? числоМатч[1] : null)
-    const буква = (числоМатч && числоМатч[2] || '').trim()
+    const номерБезБуквы =
+      position.параметры?.номер != null
+        ? String(position.параметры.номер)
+        : числоМатч
+          ? числоМатч[1]
+          : null;
+    const буква = ((числоМатч && числоМатч[2]) || "").trim();
 
     if (номерБезБуквы) {
-      const регулярка = new RegExp(`(^|\\s|\\()${номерБезБуквы}(\\s|[а-я]|$|\\))`, 'i')
-      const номерВНазвании = регулярка.test(название)
-      const номерВРазмере = v.размер != null &&
-        String(v.размер).trim().replace(/\s+/g, '') === номерБезБуквы
+      const регулярка = new RegExp(
+        `(^|\\s|\\()${номерБезБуквы}(\\s|[а-я]|$|\\))`,
+        "i",
+      );
+      const номерВНазвании = регулярка.test(название);
+      const номерВРазмере =
+        v.размер != null &&
+        String(v.размер).trim().replace(/\s+/g, "") === номерБезБуквы;
       if (!номерВНазвании && !номерВРазмере) {
-        return { ok: false, причина: `номер профиля не совпадает (нужен ${номерБезБуквы})` }
+        return {
+          ok: false,
+          причина: `номер профиля не совпадает (нужен ${номерБезБуквы})`,
+        };
       }
 
       if (буква) {
-        if (!название.includes(` ${буква}`) &&
-            !название.includes(`${номерБезБуквы}${буква}`)) {
-          return { ok: false, причина: `серия/буква не совпадает (нужна "${буква}")` }
+        if (
+          !название.includes(` ${буква}`) &&
+          !название.includes(`${номерБезБуквы}${буква}`)
+        ) {
+          return {
+            ok: false,
+            причина: `серия/буква не совпадает (нужна "${буква}")`,
+          };
         }
       }
     }
+    
 
-    return { ok: true }
+    // ВАЖНО: раньше тут был жёсткий return { ok: true }, который пропускал
+    // все проверки ниже (в т.ч. по длине прута/профиля) — из-за этого
+    // "Уголок 50х5 12 метров" мог получить вариант длиной 2м, потому что
+    // длина вообще не проверялась для швеллера/уголка/балки/круга/квадрата.
+    // Теперь просто проваливаемся дальше по функции — там уже есть
+    // отдельная проверка position.параметры?.длина.
   }
 
   // Фильтр по ДУ
   if (position.параметры?.ду) {
     if (!название.includes(`${position.параметры.ду}`)) {
-      return { ok: false, причина: `ДУ не совпадает (нужен ${position.параметры.ду})` }
+      return {
+        ok: false,
+        причина: `ДУ не совпадает (нужен ${position.параметры.ду})`,
+      };
     }
   }
 
   // Фильтр по диаметру
   if (position.параметры?.диаметр) {
     if (!название.includes(`${position.параметры.диаметр}`)) {
-      return { ok: false, причина: `диаметр не совпадает (нужен ${position.параметры.диаметр})` }
+      return {
+        ok: false,
+        причина: `диаметр не совпадает (нужен ${position.параметры.диаметр})`,
+      };
     }
   }
 
-  // Фильтр по стенке — точное совпадение
+  // Фильтр по стенке — точное совпадение. Экранируем точку и проверяем,
+  // что сразу ПОСЛЕ числа нет продолжения цифрой/точкой — иначе "х2"
+  // ложно совпадает с "х2.5" (та же природа бага, что была с толщиной
+  // листа: "2.5" ложно матчилось на толщину "5").
   if (position.параметры?.стенка) {
-    const стенка = String(position.параметры.стенка)
-    const стенкаВНазвании = название.includes(`x${стенка}`) ||
-                            название.includes(`х${стенка}`) ||
-                            название.includes(`*${стенка}`)
-    const стенкаВМарке = v.марка === стенка
+    const стенкаЭск = String(position.параметры.стенка).replace(".", "\\.");
+    const стенкаРегулярка = new RegExp(`[x×хX]${стенкаЭск}(?!\\d|\\.)`);
+    const стенкаВНазвании =
+      стенкаРегулярка.test(название) ||
+      название.includes(`*${position.параметры.стенка}`);
+    const стенкаВМарке = v.марка === String(position.параметры.стенка);
     if (!стенкаВНазвании && !стенкаВМарке) {
-      return { ok: false, причина: `стенка не совпадает (нужна ${стенка})` }
+      return {
+        ok: false,
+        причина: `стенка не совпадает (нужна ${position.параметры.стенка})`,
+      };
     }
   }
 
   // Фильтр по толщине листа
-  if (position.параметры?.толщина) {
-    const толщина = String(position.параметры.толщина).replace('.', '\\.')
-    // [^\d.] вместо [^\d] — иначе "2.5х1500" ложно матчится на толщину 5
-    const регулярка = new RegExp(`(^|\\s|[^\\d.])${толщина}(х|x)`)
+// Фильтр по толщине — ТОЛЬКО для листов!
+if (position.параметры?.толщина) {
+  // Проверяем, что это действительно лист, а не полоса
+  const этоЛист = естьЦелоеСлово(название, "лист") || 
+                  естьЦелоеСлово(запросНижний, "лист");
+  
+  if (этоЛист) {
+    const толщина = String(position.параметры.толщина).replace(".", "\\.");
+    const регулярка = new RegExp(`(^|\\s|[^\\d.])${толщина}(х|x)`);
     if (!регулярка.test(название)) {
-      return { ok: false, причина: `толщина не совпадает (нужна ${position.параметры.толщина})` }
+      return {
+        ok: false,
+        причина: `толщина листа не совпадает (нужна ${position.параметры.толщина})`,
+      };
     }
   }
+  // Для полосы толщина НЕ проверяется здесь — она проверяется в блоке формы
+}
 
-  if (position.параметры?.ширина) {
-    if (!название.includes(`${position.параметры.ширина}`)) {
-      return { ok: false, причина: `ширина не совпадает (нужна ${position.параметры.ширина})` }
+if (position.параметры?.ширина) {
+  const ширинаСтр = String(position.параметры.ширина);
+  
+  // Для полосы проверяем, что ширина есть в названии
+  const этоПолоса = естьЦелоеСлово(название, "полоса") || 
+                    естьЦелоеСлово(запросНижний, "полоса");
+  
+  if (этоПолоса) {
+    // Ищем "50х" или " 50 " или "50х5"
+    const найдено = название.includes(`${ширинаСтр}х`) || 
+                    название.includes(`${ширинаСтр}x`) ||
+                    название.includes(` ${ширинаСтр} `) ||
+                    название.startsWith(`${ширинаСтр}х`);
+    if (!найдено) {
+      return {
+        ok: false,
+        причина: `ширина полосы не совпадает (нужна ${ширинаСтр})`,
+      };
+    }
+  } else {
+    // Для других товаров — простая проверка
+    if (!название.includes(ширинаСтр)) {
+      return {
+        ok: false,
+        причина: `ширина не совпадает (нужна ${ширинаСтр})`,
+      };
     }
   }
+}
 
   if (position.параметры?.длина_листа) {
     if (!название.includes(`${position.параметры.длина_листа}`)) {
-      return { ok: false, причина: `длина листа не совпадает (нужна ${position.параметры.длина_листа})` }
+      return {
+        ok: false,
+        причина: `длина листа не совпадает (нужна ${position.параметры.длина_листа})`,
+      };
     }
   }
 
   // Фильтр по длине прута/стержня (в мм)
   if (position.параметры?.длина) {
-    const нужнаяДлина = Number(position.параметры.длина)
-    const длинаВарианта = parseInt(String(v.длина || '').replace(/\D/g, ''), 10)
+    const нужнаяДлина = Number(position.параметры.длина);
+    const длинаВарианта = parseInt(
+      String(v.длина || "").replace(/\D/g, ""),
+      10,
+    );
     if (!Number.isNaN(длинаВарианта) && длинаВарианта !== нужнаяДлина) {
-      return { ok: false, причина: `длина не совпадает (нужна ${нужнаяДлина}, тут ${длинаВарианта})` }
+      return {
+        ok: false,
+        причина: `длина не совпадает (нужна ${нужнаяДлина}, тут ${длинаВарианта})`,
+      };
     }
   }
 
-  return { ok: true }
+  return { ok: true };
 }
 
 // Готовит общий контекст (то, что не зависит от конкретного варианта) —
 // переиспользуется и filterVariants, и таблицей решения
 function подготовьКонтекст(position) {
-  const запросНижний = (position.поисковый_запрос || '').toLowerCase()
-  const названиеПозиции = (position.название || '').toLowerCase()
-  const маркаПозиции = (position.параметры?.марка || '').toLowerCase()
+  const запросНижний = (position.поисковый_запрос || "").toLowerCase();
+  const названиеПозиции = (position.название || "").toLowerCase();
+  const маркаПозиции = (position.параметры?.марка || "").toLowerCase();
 
   return {
     запросНижний,
     названиеПозиции,
     маркаПозиции,
-    нужнаНержавейка: запросНижний.includes('нержавеющ') ||
-                     запросНижний.includes('aisi') ||
-                     запросНижний.includes('нерж'),
-    нужнаНизколег: запросНижний.includes('низколегир') ||
-                   маркаПозиции.includes('09г2с') ||
-                   маркаПозиции.includes('с355'),
-    нуженМоток: запросНижний.includes('моток') || запросНижний.includes('мотк') ||
-                запросНижний.includes('бухт'),
-    нуженАлюминий: запросНижний.includes('алюмини') ||
-                   названиеПозиции.includes('алюмини') ||
-                   маркаПозиции.includes('амг') || маркаПозиции.includes('ад31') ||
-                   маркаПозиции.includes('д16') || маркаПозиции.includes('в95'),
-    нуженКалиброванный: запросНижний.includes('калиброван') ||
-                        запросНижний.includes('холоднотянут') ||
-                        названиеПозиции.includes('калиброван') ||
-                        названиеПозиции.includes('холоднотянут'),
-  }
+    нужнаНержавейка:
+      запросНижний.includes("нержавеющ") ||
+      запросНижний.includes("aisi") ||
+      запросНижний.includes("нерж"),
+    нужнаНизколег:
+      запросНижний.includes("низколегир") ||
+      маркаПозиции.includes("09г2с") ||
+      маркаПозиции.includes("с355"),
+    нуженМоток:
+      запросНижний.includes("моток") ||
+      запросНижний.includes("мотк") ||
+      запросНижний.includes("бухт"),
+    нуженАлюминий:
+      запросНижний.includes("алюмини") ||
+      названиеПозиции.includes("алюмини") ||
+      маркаПозиции.includes("амг") ||
+      маркаПозиции.includes("ад31") ||
+      маркаПозиции.includes("д16") ||
+      маркаПозиции.includes("в95"),
+    нуженКалиброванный:
+      запросНижний.includes("калиброван") ||
+      запросНижний.includes("холоднотянут") ||
+      названиеПозиции.includes("калиброван") ||
+      названиеПозиции.includes("холоднотянут"),
+  };
 }
 
 function filterVariants(variants, position) {
-  const контекст = подготовьКонтекст(position)
-  return variants.filter(v => оцениВариант(v, position, контекст).ok)
+  const контекст = подготовьКонтекст(position);
+  return variants.filter((v) => оцениВариант(v, position, контекст).ok);
 }
 
 // Как filterVariants, но возвращает ВСЕХ кандидатов с вердиктом и
 // причиной — нужно для таблицы решения (scraper/decisionTable.js), где
 // важно видеть не только прошедших, но и отклонённых с объяснением
 function оцениВсеВарианты(variants, position) {
-  const контекст = подготовьКонтекст(position)
-  return variants.map(v => {
-    const { ok, причина } = оцениВариант(v, position, контекст)
-    return { вариант: v, прошёл: ok, причина: причина || null }
-  })
+  const контекст = подготовьКонтекст(position);
+  return variants.map((v) => {
+    const { ok, причина } = оцениВариант(v, position, контекст);
+    return { вариант: v, прошёл: ok, причина: причина || null };
+  });
 }
 
-module.exports = { searchPosition, оцениВсеВарианты, нормализуйМарку }
+module.exports = { searchPosition, оцениВсеВарианты, нормализуйМарку };

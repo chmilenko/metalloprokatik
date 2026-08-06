@@ -2,7 +2,8 @@
  * handlers/message.js
  *
  * Обрабатывает входящие заявки от менеджера.
- * Полный цикл: парсинг → поиск → корзина → скриншот → подтверждение → PDF
+ * Полный цикл: парсинг → поиск → подбор базы (может спросить подтверждение)
+ * → корзина → скриншот → подтверждение заказа → PDF
  */
 
 const fs = require("fs");
@@ -89,94 +90,30 @@ async function handleMessage(ctx) {
       }
     );
 
-    const { cartScreenshot, selection, notFound } = result;
+    // Подбор базы требует подтверждения менеджера — корзина ЕЩЁ НЕ
+    // заполнена. Спрашиваем и ждём ответ через callback (base_yes/base_no
+    // в handlers/callback.js), которая потом сама вызовет finalizeOrder.
+    if (result.needsBaseConfirmation) {
+      setSession(userId, {
+        processing: false,
+        awaitingBaseConfirmation: true,
+        baseFound: result.found,
+        baseNotFound: result.notFound,
+        baseNeedHelp: result.needHelp,
+        baseRecommendation: result.baseRecommendation,
+        baseExcluded: [],
+        baseOrder: order,
+        needHelpList,
+      });
 
-    // Итоговая сводка
-    const добавленоВКорзину = order.корзина.filter(c => c.статус === 'добавлено').length
-    const звонок = order.корзина.filter(c => c.статус === 'звонок').length
-    const ошибкаДобавления = order.корзина.filter(c => c.статус === 'ошибка').length
-
-    let summary = `📊 Добавлено в корзину ${добавленоВКорзину} из ${positions.length} позиций:\n\n`
-
-    selection.forEach((s, i) => {
-      summary += `${i + 1}. ${s.variant.название}\n`
-      summary += `   ${s.position.количество} ${s.position.единица} — ${s.variant.смц}\n`
-      summary += `   Цена: ${s.variant.цена_от_1т?.toLocaleString("ru")} руб/т\n`
-
-      // Если сайт скорректировал количество (например, не хватило на
-      // складе) — показываем менеджеру точный текст предупреждения,
-      // а не только тихо занижаем ожидания
-      const запись = order.корзина.find(
-        (c) => c.название === s.position.название && c.смц === s.variant.смц
-      );
-      if (запись?.предупреждение) {
-        summary += `   ⚠️ ${запись.предупреждение}\n`
-      }
-
-      summary += `\n`
-    })
-
-    if (notFound.length > 0) {
-      summary += `❌ Не найдено (${notFound.length}):\n`
-      notFound.forEach((p) => { summary += `   • ${p.название}\n` })
-      summary += '\n'
+      await askBaseConfirmation(ctx, result.baseRecommendation);
+      return;
     }
 
-    if (звонок > 0) {
-      summary += `📞 Только по звонку (${звонок}):\n`
-      order.корзина.filter(c => c.статус === 'звонок')
-        .forEach(c => { summary += `   • ${c.название}\n` })
-      summary += '\n'
-    }
-
-    if (ошибкаДобавления > 0) {
-      summary += `⚠️ Не удалось добавить (${ошибкаДобавления}):\n`
-      order.корзина.filter(c => c.статус === 'ошибка')
-        .forEach(c => {
-          summary += `   • ${c.название}`
-          summary += c.ошибка ? ` — ${c.ошибка}\n` : `\n`
-        })
-      summary += '\n'
-    }
-
-    summary += `💡 Проверьте корзину на скриншоте. Если позиция добавлена неверно — исправьте вручную на mc.ru перед оформлением.`
-
-    await ctx.reply(summary);
-
-    // Отправляем скриншот корзины
-    if (cartScreenshot && fs.existsSync(cartScreenshot)) {
-      await ctx.replyWithPhoto(
-        { source: fs.createReadStream(cartScreenshot) },
-        { caption: "🛒 Проверьте корзину перед оформлением заказа" }
-      );
-    }
-
-    // Сохраняем состояние — ждём подтверждения
-    setSession(userId, {
-      processing: false,
-      awaitingConfirmation: true,
-      selection,
-      notFound,
-      needHelp: needHelpList,
-      orderId: order.id,
-    });
-
-    // Кнопки подтверждения
-    await ctx.reply(
-      "Всё верно в корзине?",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("✅ Оформить заказ", "confirm_order")],
-        [Markup.button.callback("❌ Отменить", "cancel_order")],
-      ])
-    );
-
-    // Спрашиваем про ненайденные позиции
-    if (needHelpList.length > 0) {
-      await askAboutNextPosition(ctx, userId, needHelpList);
-    }
+    await sendOrderSummary(ctx, userId, order, result, positions.length, needHelpList);
 
   } catch (err) {
-    logger.error("Ошибка обработки заявки", { userId, error: err.message });
+    logger.error("Ошибка обработки заявки", { userId, error: err.message, stack: err.stack });
 
     await sendAlert(
       { telegram: ctx.telegram },
@@ -195,6 +132,102 @@ async function handleMessage(ctx) {
     if (currentSession.processing) {
       setSession(userId, { ...currentSession, processing: false });
     }
+  }
+}
+
+// Отправляет менеджеру вопрос о подборе базы с кнопками Да/Нет.
+// Вызывается и из handleMessage (первая попытка), и из handlers/callback.js
+// (повторные попытки после отказа).
+async function askBaseConfirmation(ctx, baseRecommendation) {
+  await ctx.reply(
+    `💰 ${baseRecommendation.объяснение}\n\n${baseRecommendation.вопросДляМенеджера}`,
+    Markup.inlineKeyboard([
+      [Markup.button.callback("✅ Да", "base_yes")],
+      [Markup.button.callback("❌ Нет", "base_no")],
+    ])
+  );
+}
+
+// Итоговая сводка + скриншот + кнопки "Оформить заказ"/"Отменить" —
+// общая для обычного пути (сразу после processOrder) и для пути после
+// подтверждения базы (вызывается из handlers/callback.js)
+async function sendOrderSummary(ctx, userId, order, result, всегоПозиций, needHelpList) {
+  const { cartScreenshot, selection, notFound } = result;
+
+  const добавленоВКорзину = order.корзина.filter(c => c.статус === 'добавлено').length
+  const звонок = order.корзина.filter(c => c.статус === 'звонок').length
+  const ошибкаДобавления = order.корзина.filter(c => c.статус === 'ошибка').length
+
+  let summary = `📊 Добавлено в корзину ${добавленоВКорзину} из ${всегоПозиций} позиций:\n\n`
+
+  selection.forEach((s, i) => {
+    summary += `${i + 1}. ${s.variant.название}\n`
+    summary += `   ${s.position.количество} ${s.position.единица} — ${s.variant.смц}\n`
+    summary += `   Цена: ${s.variant.цена_от_1т?.toLocaleString("ru")} руб/т\n`
+
+    const запись = order.корзина.find(
+      (c) => c.название === s.position.название && c.смц === s.variant.смц
+    );
+    if (запись?.предупреждение) {
+      summary += `   ⚠️ ${запись.предупреждение}\n`
+    }
+
+    summary += `\n`
+  })
+
+  if (notFound.length > 0) {
+    summary += `❌ Не найдено (${notFound.length}):\n`
+    notFound.forEach((p) => { summary += `   • ${p.название}\n` })
+    summary += '\n'
+  }
+
+  if (звонок > 0) {
+    summary += `📞 Только по звонку (${звонок}):\n`
+    order.корзина.filter(c => c.статус === 'звонок')
+      .forEach(c => { summary += `   • ${c.название}\n` })
+    summary += '\n'
+  }
+
+  if (ошибкаДобавления > 0) {
+    summary += `⚠️ Не удалось добавить (${ошибкаДобавления}):\n`
+    order.корзина.filter(c => c.статус === 'ошибка')
+      .forEach(c => {
+        summary += `   • ${c.название}`
+        summary += c.ошибка ? ` — ${c.ошибка}\n` : `\n`
+      })
+    summary += '\n'
+  }
+
+  summary += `💡 Проверьте корзину на скриншоте. Если позиция добавлена неверно — исправьте вручную на mc.ru перед оформлением.`
+
+  await ctx.reply(summary);
+
+  if (cartScreenshot && fs.existsSync(cartScreenshot)) {
+    await ctx.replyWithPhoto(
+      { source: fs.createReadStream(cartScreenshot) },
+      { caption: "🛒 Проверьте корзину перед оформлением заказа" }
+    );
+  }
+
+  setSession(userId, {
+    processing: false,
+    awaitingConfirmation: true,
+    selection,
+    notFound,
+    needHelp: needHelpList,
+    orderId: order.id,
+  });
+
+  await ctx.reply(
+    "Всё верно в корзине?",
+    Markup.inlineKeyboard([
+      [Markup.button.callback("✅ Оформить заказ", "confirm_order")],
+      [Markup.button.callback("❌ Отменить", "cancel_order")],
+    ])
+  );
+
+  if (needHelpList.length > 0) {
+    await askAboutNextPosition(ctx, userId, needHelpList);
   }
 }
 
@@ -239,4 +272,4 @@ async function handleSearchQueryResponse(ctx, text, userId, session) {
   }
 }
 
-module.exports = { handleMessage };
+module.exports = { handleMessage, sendOrderSummary, askBaseConfirmation };

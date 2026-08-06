@@ -6,6 +6,7 @@
 
 const logger = require('../utils/logger')
 const { getPage } = require('./browser')
+const { getBasePriority } = require('../utils/basePriorityStore')
 const path = require('path')
 const fs = require('fs')
 
@@ -25,38 +26,46 @@ async function placeOrder() {
   await delay(2000)
 
   // Шаг 1 — читаем доступные базы в dropdown
-  // const availableBases = await page.evaluate(() => {
-  //   const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
-  //   return Array.from(items).map(a => ({
-  //     name: a.textContent.trim(),
-  //     baseName: a.dataset.baseName
-  //   }))
-  // })
+  const availableBases = await page.evaluate(() => {
+    const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
+    return Array.from(items).map(a => ({
+      name: a.textContent.trim(),
+      baseName: a.dataset.baseName
+    }))
+  })
 
-  // console.log('Доступные базы в корзине:', availableBases)
+  console.log('Доступные базы в корзине:', availableBases)
 
-  // Шаг 2 — если есть выбор базы, выбираем первую
-  // (все базы в dropdown покрывают все позиции корзины)
-  // if (availableBases.length > 0) {
-  //   const selectedBase = availableBases[0].name
-  //   logger.info('Выбираем базу', { база: selectedBase })
+  // Шаг 2 — если есть выбор базы, выбираем по нашему приоритету
+  // (все базы в dropdown покрывают все позиции корзины — сайт сам это
+  // посчитал по реальным остаткам; из них берём ту, что выше по
+  // приоритету, настроенному через /bases, а не просто первую в DOM)
+  if (availableBases.length > 0) {
+    const приоритет = getBasePriority()
+    const отсортированные = [...availableBases].sort((a, b) => {
+      const иА = приоритет.indexOf(a.name)
+      const иБ = приоритет.indexOf(b.name)
+      return (иА === -1 ? 999 : иА) - (иБ === -1 ? 999 : иБ)
+    })
+    const selectedBase = отсортированные[0].name
+    logger.info('Выбираем базу', { база: selectedBase, доступные: availableBases.map(b => b.name), приоритет })
 
-  //   // Открываем dropdown
-  //   await page.evaluate(() => {
-  //     document.querySelector('#FactorySel').click()
-  //   })
-  //   await delay(500)
+    // Открываем dropdown
+    await page.evaluate(() => {
+      document.querySelector('#FactorySel').click()
+    })
+    await delay(500)
 
-  //   // Выбираем базу
-  //   await page.evaluate((name) => {
-  //     const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
-  //     const target = Array.from(items).find(a => a.textContent.trim() === name)
-  //     if (target) target.click()
-  //   }, selectedBase)
+    // Выбираем базу
+    await page.evaluate((name) => {
+      const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
+      const target = Array.from(items).find(a => a.textContent.trim() === name)
+      if (target) target.click()
+    }, selectedBase)
 
-  //   await delay(1000)
-  //   logger.info('База выбрана', { база: selectedBase })
-  // }
+    await delay(1000)
+    logger.info('База выбрана', { база: selectedBase })
+  }
 
   // Шаг 3 — первая кнопка оформления
   await page.waitForSelector('#submitBasket', { state: 'visible', timeout: 15000 })

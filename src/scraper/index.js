@@ -8,6 +8,8 @@ const { saveMapping } = require("../agent/searchMapManager");
 const logger = require("../utils/logger");
 const { saveOrder, logOrder } = require('../utils/orderLogger');
 const { построитьТаблицу, сохраниТаблицу } = require('./decisionTable');
+const { подбериБазу } = require('./baseOptimizer');
+const { getBasePriority } = require('../utils/basePriorityStore');
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -72,24 +74,19 @@ function имеетОпределённуюДлину(v) {
 }
 
 /**
- * Выбирает лучший вариант из найденных.
- * Приоритет: ГОСТ > ТУ, минимальная цена внутри каждой группы.
+ * Выбирает лучший вариант из найденных — БЕЗ учёта базы, только по цене.
+ * Используется как резервный вариант, если по какой-то причине подбор
+ * базы не дал варианта для конкретной позиции (не должно случаться при
+ * нормальной работе baseOptimizer, но на всякий случай не роняем заказ).
+ * Приоритет: ГОСТ > ТУ, чёткая длина > "н/д", минимальная цена внутри группы.
  */
 function selectBestVariant(variants) {
-  // Сначала ищем ГОСТ варианты
   const гостВарианты = variants.filter(v =>
     v.название.toLowerCase().includes('гост')
   )
 
-  // Если есть ГОСТ — берём минимальную цену среди ГОСТ
-  // Если нет ГОСТ — берём минимальную цену среди всех
   let источник = гостВарианты.length > 0 ? гостВарианты : variants
 
-  // Предпочитаем варианты с чётко определённой длиной прутка (6000/11700
-  // и т.п.), а не "н/д" или диапазоны вроде "1000-6000" — на практике
-  // именно у таких "неопределённых по длине" позиций чаще случается
-  // нехватка на складе (см. фидбэк по арматуре). Если таких вариантов
-  // нет вообще — не сужаем, берём из всех как раньше.
   const сОпределённойДлиной = источник.filter(имеетОпределённуюДлину)
   if (сОпределённойДлиной.length > 0) {
     источник = сОпределённойДлиной
@@ -100,15 +97,19 @@ function selectBestVariant(variants) {
   )
 }
 
-async function processOrder(positions, onProgress, onNeedHelp, order) {
+/**
+ * Фаза 1 — поиск всех позиций. Ничего не добавляет в корзину, только
+ * ищет и фильтрует. Отдельная функция, потому что после поиска нужно
+ * подобрать базу (см. baseOptimizer) и, возможно, спросить менеджера —
+ * а уже потом (в finalizeOrder) заполнять корзину.
+ */
+async function searchPositions(positions, onProgress, onNeedHelp, order) {
   await authorize();
 
-  const startTime = Date.now();
   const found = [];
   const notFound = [];
   const needHelp = [];
 
-  // Фаза 1 — поиск всех позиций
   for (let i = 0; i < positions.length; i++) {
     const position = positions[i];
     await onProgress(`🔍 Ищу ${i + 1}/${positions.length}: ${position.название}...`);
@@ -169,6 +170,26 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
     }
   }
 
+  return { found, notFound, needHelp };
+}
+
+/**
+ * Фаза 2-5 — очищает корзину и заполняет её. Принимает УЖЕ подобранные
+ * варианты (по одному на позицию, привязанные к выбранной базе/базам —
+ * см. baseOptimizer.подбериБазу). Если для какой-то позиции вариант не
+ * передан (не должно случаться, но на всякий случай) — берёт резервный
+ * через selectBestVariant.
+ *
+ * @param {Array<{position, variants}>} found - результат searchPositions
+ * @param {Map<string, object>} вариантПоПозиции - название позиции → выбранный вариант
+ * @param {object[]} notFound
+ * @param {object[]} needHelp
+ * @param {Function} onProgress
+ * @param {object} order
+ */
+async function finalizeOrder(found, вариантПоПозиции, notFound, needHelp, onProgress, order) {
+  const startTime = Date.now();
+
   if (found.length === 0) {
     order.итог.статус = 'не найдено ничего';
     order.итог.время_обработки_сек = Math.round((Date.now() - startTime) / 1000);
@@ -185,20 +206,16 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
     };
   }
 
-  // Фаза 2 — выбираем лучший вариант (ГОСТ приоритет)
-  await onProgress('💰 Выбираю лучшие цены...');
+  await onProgress('💰 Собираю позиции по выбранной базе...');
   const selection = found.map(r => {
-    const best = selectBestVariant(r.variants)
+    const best = вариантПоПозиции.get(r.position.название) || selectBestVariant(r.variants);
 
-    // Логируем ВСЕХ кандидатов и выбранный вариант — это ключевое место
-    // для разбора "почему выбралось именно это", без похода на сайт вручную
     logger.info('Выбор варианта', {
       позиция: r.position.название,
       кандидаты: r.variants.map(краткоДляЛога),
       выбрано: краткоДляЛога(best),
     });
 
-    // Логируем выбранный вариант
     const searchLog = order.поиск.find(s => s.название === r.position.название);
     if (searchLog) {
       searchLog.выбран = {
@@ -240,9 +257,6 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
         статус: 'добавлено'
       };
 
-      // Сайт мог сам скорректировать количество (например, при нехватке
-      // на складе) — это не ошибка, товар реально добавлен, но нужно
-      // показать менеджеру точный текст, что именно скорректировано
       if (addResult?.adjusted) {
         await onProgress(`⚠️ ${position.название}: ${addResult.adjustmentMessage}`);
         запись.предупреждение = addResult.adjustmentMessage;
@@ -261,9 +275,6 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
       }
 
       if (err.message.startsWith('WARNING:')) {
-        // WARNING теперь бросается ДО клика по кнопке "Добавить в корзину"
-        // и означает блокирующий отказ (например "нет в наличии") —
-        // это реальная неудача добавления, а не успех с предупреждением
         const parts = err.message.replace('WARNING:', '').split('|');
         const сообщение = parts[1];
         await onProgress(`❌ Не удалось добавить: ${position.название} — ${сообщение}`);
@@ -292,13 +303,11 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
     await delay(Math.random() * 1000 + 500);
   }
 
-  // Фаза 5 — скриншот
   const cartScreenshot = await screenshotCart();
 
-  // Обновляем итог
   order.итог.найдено = успешноДобавлено.length;
   order.итог.не_найдено = notFound.length + needHelp.length;
-  order.итог.всего = positions.length;
+  order.итог.всего = found.length + notFound.length + needHelp.length;
   order.итог.время_обработки_сек = Math.round((Date.now() - startTime) / 1000);
   order.итог.статус = 'ожидает подтверждения';
   saveOrder(order);
@@ -306,4 +315,59 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
   return { cartScreenshot, selection: успешноДобавлено, notFound, needHelp, bases, order };
 }
 
-module.exports = { processOrder };
+// Строит Map<название, вариант> из рекомендации baseOptimizer — удобный
+// формат для передачи в finalizeOrder
+function вариантПоПозицииИзРекомендации(baseRecommendation) {
+  const карта = new Map();
+  for (const p of baseRecommendation.позиции) {
+    if (p.вариант) карта.set(p.название, p.вариант);
+  }
+  return карта;
+}
+
+/**
+ * Главная точка входа — как и раньше, но теперь может вернуться ДВУМЯ
+ * разными способами:
+ *  1. Обычный результат (как раньше) — если база подобралась без
+ *     необходимости спрашивать менеджера (единая ПРИОРИТЕТНАЯ база на
+ *     все позиции).
+ *  2. { needsBaseConfirmation: true, found, notFound, needHelp,
+ *       baseRecommendation, order } — если нужно подтверждение. Корзина
+ *     в этом случае ЕЩЁ НЕ заполняется. Вызывающий код (handlers/message.js)
+ *     должен спросить менеджера и потом вызвать finalizeOrder напрямую
+ *     (см. handlers/callback.js) с итоговой картой вариантов.
+ */
+async function processOrder(positions, onProgress, onNeedHelp, order) {
+  const { found, notFound, needHelp } = await searchPositions(positions, onProgress, onNeedHelp, order);
+
+  if (found.length === 0) {
+    return finalizeOrder(found, new Map(), notFound, needHelp, onProgress, order);
+  }
+
+  const baseRecommendation = подбериБазу(found, [], getBasePriority());
+
+  logger.info('Подбор базы', {
+    тип: baseRecommendation.тип,
+    база: baseRecommendation.база || baseRecommendation.базы,
+    требуетПодтверждения: baseRecommendation.требуетПодтверждения,
+  });
+
+  if (!baseRecommendation.требуетПодтверждения) {
+    const вариантПоПозиции = вариантПоПозицииИзРекомендации(baseRecommendation);
+    return finalizeOrder(found, вариантПоПозиции, notFound, needHelp, onProgress, order);
+  }
+
+  // Нужно подтверждение менеджера — НЕ заполняем корзину, отдаём всё
+  // необходимое наверх, чтобы handlers/message.js мог спросить и
+  // дождаться ответа через callback (см. handlers/callback.js)
+  return {
+    needsBaseConfirmation: true,
+    found,
+    notFound,
+    needHelp,
+    baseRecommendation,
+    order,
+  };
+}
+
+module.exports = { processOrder, searchPositions, finalizeOrder, вариантПоПозицииИзРекомендации };
