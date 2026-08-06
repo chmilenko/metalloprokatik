@@ -15,8 +15,11 @@ const { isAllowed } = require("../utils/auth");
 const { saveFeedback, getFeedback } = require("../utils/feedback");
 const { getOrder, getRecentOrders } = require("../utils/orderLogger");
 const { sendAlert } = require("../utils/alerts");
+const { handleDecisionCommand } = require('./handlers/decision');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+bot.command('decision', handleDecisionCommand);
 
 // Команды — должны быть ДО обработчика текста
 bot.command("skip", async (ctx) => {

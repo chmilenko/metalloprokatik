@@ -7,6 +7,7 @@ const { askAI } = require("../agent/llm");
 const { saveMapping } = require("../agent/searchMapManager");
 const logger = require("../utils/logger");
 const { saveOrder, logOrder } = require('../utils/orderLogger');
+const { построитьТаблицу, сохраниТаблицу } = require('./decisionTable');
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -24,7 +25,8 @@ function краткоДляЛога(v) {
 
 async function findPosition(position, onProgress) {
   let result = await searchPosition(position.поисковый_запрос, position);
-  if (result.found) return { result, usedQuery: position.поисковый_запрос };
+  let lastRawRows = result.rawRows || [];
+  if (result.found) return { result, usedQuery: position.поисковый_запрос, rawRows: lastRawRows };
 
   await onProgress(
     `⚠️ Не нашёл по запросу "${position.поисковый_запрос}". Пробую альтернативы...`
@@ -50,13 +52,14 @@ async function findPosition(position, onProgress) {
   for (const alt of alternatives) {
     await onProgress(`🔄 Пробую запрос: "${alt}"...`);
     result = await searchPosition(alt, position);
+    if (result.rawRows?.length) lastRawRows = result.rawRows;
     if (result.found) {
       await onProgress(`✅ Нашёл по запросу "${alt}"`);
-      return { result, usedQuery: alt };
+      return { result, usedQuery: alt, rawRows: lastRawRows };
     }
   }
 
-  return { result: { found: false }, usedQuery: null, needsHelp: true };
+  return { result: { found: false }, usedQuery: null, needsHelp: true, rawRows: lastRawRows };
 }
 
 /**
@@ -121,7 +124,22 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
     };
 
     try {
-      const { result, usedQuery, needsHelp } = await findPosition(position, onProgress);
+      const { result, usedQuery, needsHelp, rawRows } = await findPosition(position, onProgress);
+
+      // Таблица решения — строится ВСЕГДА, когда есть с чем сравнивать
+      // (даже если ничего не найдено — важно видеть, что было и почему
+      // отклонено). Не роняем обработку заявки, если тут что-то пойдёт не так.
+      try {
+        if (rawRows && rawRows.length > 0) {
+          const таблица = построитьТаблицу(position, rawRows);
+          сохраниТаблицу(order.id, таблица);
+        }
+      } catch (auditErr) {
+        logger.warn('Не удалось построить таблицу решения', {
+          название: position.название,
+          error: auditErr.message,
+        });
+      }
 
       if (needsHelp) {
         needHelp.push(position);
