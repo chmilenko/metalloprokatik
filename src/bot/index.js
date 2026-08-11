@@ -17,12 +17,32 @@ const { getOrder, getRecentOrders } = require("../utils/orderLogger");
 const { sendAlert } = require("../utils/alerts");
 const { handleBasesCommand } = require('./handlers/basePriority');
 const { handleDecisionCommand } = require('./handlers/decision');
-
+const { экспортироватьЗаявку } = require('../scraper/exportToExcel');
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 bot.command('bases', handleBasesCommand);
 
 bot.command('decision', handleDecisionCommand);
+
+// Команда /export — экспорт заявки в Excel
+bot.command('export', async (ctx) => {
+  if (!isAllowed(ctx.from.id)) return;
+  
+  const text = ctx.message.text.replace('/export', '').trim();
+  
+  if (!text) {
+    await ctx.reply(
+      '📝 Использование: /export <заявка>\n\n' +
+      'Пример:\n' +
+      '/export Полоса г/к 50х5 - 6м\n' +
+      'Труба 20х20х1,5 - 1т\n' +
+      'Лист 1,5х1250х2500 - 1т'
+    );
+    return;
+  }
+  
+  await экспортироватьЗаявку(ctx, text);
+});
 
 // Команды — должны быть ДО обработчика текста
 bot.command("skip", async (ctx) => {

@@ -221,23 +221,34 @@ async function clearCart(page) {
 }
 
 async function screenshotCart() {
-  const page = await getPage()
+  // Создаём НОВУЮ страницу, чтобы не зависеть от состояния текущей
+  const page = await getPage();
+  
+  // Если страница уже в корзине, перезагружаем
+  const currentUrl = page.url();
+  if (!currentUrl.includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
+    logger.info('Переходим в корзину для скриншота');
+    await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1', {
+      timeout: 30000,
+      waitUntil: 'domcontentloaded'
+    });
+  } else {
+    logger.info('Уже на странице корзины, обновляем');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  }
+  
+  await delay(1000);
 
-  logger.info('Делаем скриншот корзины')
-  await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1')
-  await page.waitForLoadState('domcontentloaded')
-  await delay(1000)
-
-  const outputDir = path.join(__dirname, '../../downloads')
+  const outputDir = path.join(__dirname, '../../downloads');
   if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true })
+    fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const screenshotPath = path.join(outputDir, `cart_${Date.now()}.png`)
-  await page.screenshot({ path: screenshotPath, fullPage: true })
+  const screenshotPath = path.join(outputDir, `cart_${Date.now()}.png`);
+  await page.screenshot({ path: screenshotPath, fullPage: true });
 
-  logger.info('Скриншот корзины сохранён', { path: screenshotPath })
-  return screenshotPath
+  logger.info('Скриншот корзины сохранён', { path: screenshotPath });
+  return screenshotPath;
 }
 
 module.exports = { placeOrder, clearCart, screenshotCart  }

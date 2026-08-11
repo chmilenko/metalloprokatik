@@ -2,7 +2,7 @@
  * cart.js
  *
  * Работа с корзиной на mc.ru.
- * Добавляет позиции в корзину через модальное окно (iframe).
+ * Добавляет позиции в корзину.
  */
 
 const logger = require("../utils/logger");
@@ -13,36 +13,36 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function addToCart(variant, quantity, unit = "т") {
   const page = await getPage();
 
+  const целеваяБаза = variant.recommendedBase || null;
+  const известныеБазы = variant._allBases || [];
+
   logger.info("Добавляем в корзину", {
     название: variant.название,
     смц: variant.смц,
+    целеваяБаза,
+    известныеБазы: известныеБазы.length,
     количество: quantity,
     единица: unit,
   });
 
+  // ============================================================
+  // 1. ПЕРЕХОД НА СТРАНИЦУ С ТОВАРОМ
+  // ============================================================
+
   if (variant.sourceUrl) {
-    // Вариант уже был найден на конкретной странице (категория или
-    // результаты поиска) — переходим сразу туда. Это надёжнее повторного
-    // поиска с нуля: на разных страницах СМЦ может форматироваться
-    // по-разному (склады объединяются в одну ячейку по-разному), из-за
-    // чего повторный поиск не находил строку с тем же СМЦ буквально.
     await page.goto(variant.sourceUrl);
     await page.waitForLoadState("domcontentloaded");
     await delay(1000);
   } else {
-    // Старое поведение — ищем заново через строку поиска (для вариантов
-    // без sourceUrl, на случай обратной совместимости)
     await page.goto("https://mc.ru");
     await page.waitForLoadState("domcontentloaded");
     await delay(1000);
 
-    // Открываем поиск
     await page.evaluate(() => {
       document.querySelector("#searchField").click();
     });
     await delay(300);
 
-    // Вводим запрос
     await page.waitForSelector('input[name="referal"]', { state: "visible" });
     await page.fill('input[name="referal"]', variant.поисковый_запрос);
     await delay(300);
@@ -52,136 +52,380 @@ async function addToCart(variant, quantity, unit = "т") {
     await delay(2000);
   }
 
-  // Ждём таблицу
+  // ============================================================
+  // 2. ПОИСК СТРОКИ В ТАБЛИЦЕ
+  // ============================================================
+
   await page.waitForSelector("table tbody tr", {
     state: "visible",
     timeout: 10000,
   });
   await delay(500);
 
-  // Находим нужную строку по названию и СМЦ
   const rows = await page.$$("table tbody tr");
-
   let targetRow = null;
+  let смцТаблицы = null;
 
   for (const row of rows) {
-    // Пропускаем строки без кнопки
-    const hasButton = await row
-      .$("button._basket, button._phone")
-      .catch(() => null);
+    const hasButton = await row.$("button._basket, button._phone").catch(() => null);
     if (!hasButton) continue;
 
-    const смц = await row
-      .$eval("td._fact", (el) => el.innerText.trim())
-      .catch(() =>
-        row
-          .$eval("td:nth-child(5)", (el) => el.innerText.trim())
-          .catch(() => ""),
-      );
     const название = await row
       .$eval("td.TovName", (el) => el.innerText.trim())
       .catch(() =>
-        row
-          .$eval("td:nth-child(1)", (el) => el.innerText.trim())
-          .catch(() => ""),
+        row.$eval("td:nth-child(1)", (el) => el.innerText.trim()).catch(() => "")
       );
-    // Марка — критично сверять и её: у сортового проката (круг, квадрат
-    // и т.п.) разные марки стали одного диаметра часто имеют ИДЕНТИЧНЫЕ
-    // название и СМЦ (например Ст35/Ст20/Ст45 круг 40мм — все "горячекатаный
-    // круг из конструкционной сортовой стали 40" на одной базе Карачарово).
-    // Без сверки марки код мог кликнуть на первую попавшуюся строку с
-    // совпадающими название+смц — не обязательно ту, что реально выбрана.
+    const марка = await row
+      .$eval("td:nth-child(3)", (el) => el.innerText.trim())
+      .catch(() => "");
+    const смц = await row
+      .$eval("td._fact", (el) => el.innerText.trim())
+      .catch(() =>
+        row.$eval("td:nth-child(5)", (el) => el.innerText.trim()).catch(() => "")
+      );
+
+    const маркаСовпадает = !variant.марка || марка === variant.марка;
+    if (название === variant.название && маркаСовпадает) {
+      // Если в СМЦ несколько баз через запятую — проваливаемся в карточку
+      if (смц && смц.includes(',')) {
+        logger.info("В таблице несколько баз, проваливаемся в карточку", { смц });
+        return await добавитьЧерезКарточку(page, variant, quantity, unit);
+      }
+
+      if (целеваяБаза) {
+        if (смц && смц.includes(целеваяБаза)) {
+          targetRow = row;
+          смцТаблицы = смц;
+          break;
+        }
+      } else if (известныеБазы.length > 0) {
+        for (const база of известныеБазы) {
+          if (смц && смц.includes(база)) {
+            targetRow = row;
+            смцТаблицы = смц;
+            break;
+          }
+        }
+        if (targetRow) break;
+      } else {
+        targetRow = row;
+        смцТаблицы = смц;
+        break;
+      }
+    }
+  }
+
+  // ============================================================
+  // 3. ЕСЛИ СТРОКА НЕ НАЙДЕНА — ПРОВАЛ В КАРТОЧКУ
+  // ============================================================
+
+  if (!targetRow) {
+    logger.info("Строка не найдена, провал в карточку", {
+      название: variant.название,
+      целеваяБаза,
+    });
+    return await добавитьЧерезКарточку(page, variant, quantity, unit);
+  }
+
+  // ============================================================
+  // 4. ДОБАВЛЯЕМ ЧЕРЕЗ ТАБЛИЦУ
+  // ============================================================
+
+  logger.info("Строка найдена, добавляем через таблицу", {
+    название: variant.название,
+    целеваяБаза,
+    смц: смцТаблицы,
+  });
+
+  const basketBtn = await targetRow.$("button._basket");
+  if (!basketBtn) {
+    logger.warn("Нет кнопки корзины в таблице, пробуем провал в карточку");
+    return await добавитьЧерезКарточку(page, variant, quantity, unit);
+  }
+
+  await basketBtn.scrollIntoViewIfNeeded();
+  await delay(300);
+  await page.evaluate((btn) => {
+    btn.click();
+  }, basketBtn);
+  await delay(1000);
+
+  // Ждём модалку
+  try {
+    await page.waitForSelector("#addbasket", { state: "visible", timeout: 5000 });
+  } catch (e) {
+    logger.info("Модалка не появилась, возможно товар уже в корзине");
+    return { adjusted: false, adjustmentMessage: null };
+  }
+  await delay(500);
+
+  const iframeElement = await page.$("#addbasket");
+  if (!iframeElement) {
+    logger.warn("Не нашли iframe #addbasket");
+    return { adjusted: false, adjustmentMessage: null };
+  }
+
+  const iframe = await iframeElement.contentFrame();
+  if (!iframe) {
+    logger.warn("Не удалось получить contentFrame");
+    return { adjusted: false, adjustmentMessage: null };
+  }
+
+  try {
+    await iframe.waitForSelector("#tonns", { state: "visible", timeout: 5000 });
+  } catch (e) {
+    logger.warn("Не нашли #tonns в iframe");
+    return { adjusted: false, adjustmentMessage: null };
+  }
+  await delay(500);
+
+  await ввестиКоличество(iframe, quantity, unit);
+
+  const errorMessage = await проверитьОшибки(iframe);
+  const этоКорректировкаКоличества = errorMessage &&
+    /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
+
+  if (errorMessage && !этоКорректировкаКоличества) {
+    logger.warn("Предупреждение при добавлении в корзину", {
+      название: variant.название,
+      сообщение: errorMessage,
+    });
+    throw new Error(`WARNING:${variant.название}|${errorMessage}`);
+  }
+
+  if (этоКорректировкаКоличества) {
+    logger.warn("Количество скорректировано сайтом", {
+      название: variant.название,
+      сообщение: errorMessage,
+    });
+  }
+
+  await нажатьКнопкуВМодалке(iframe);
+
+  await delay(1000);
+
+  logger.info("Добавлено в корзину (через таблицу)", {
+    название: variant.название,
+    смц: variant.смц,
+    ...(этоКорректировкаКоличества ? { скорректировано: errorMessage } : {}),
+  });
+
+  return {
+    adjusted: !!этоКорректировкаКоличества,
+    adjustmentMessage: этоКорректировкаКоличества ? errorMessage : null,
+  };
+}
+
+// ============================================================
+// ДОБАВЛЕНИЕ ЧЕРЕЗ КАРТОЧКУ
+// ============================================================
+
+async function добавитьЧерезКарточку(page, variant, quantity, unit) {
+  logger.info("Добавляем через карточку", {
+    название: variant.название,
+    целеваяБаза: variant.recommendedBase,
+  });
+
+  // Находим строку
+  const rows = await page.$$("table tbody tr");
+  let targetRow = null;
+
+  for (const row of rows) {
+    const hasButton = await row.$("button._basket, button._phone").catch(() => null);
+    if (!hasButton) continue;
+
+    const название = await row
+      .$eval("td.TovName", (el) => el.innerText.trim())
+      .catch(() =>
+        row.$eval("td:nth-child(1)", (el) => el.innerText.trim()).catch(() => "")
+      );
     const марка = await row
       .$eval("td:nth-child(3)", (el) => el.innerText.trim())
       .catch(() => "");
 
     const маркаСовпадает = !variant.марка || марка === variant.марка;
-
-    if (смц === variant.смц && название === variant.название && маркаСовпадает) {
+    if (название === variant.название && маркаСовпадает) {
       targetRow = row;
       break;
     }
   }
 
   if (!targetRow) {
-    throw new Error(
-      `Не нашли строку: ${variant.название} (марка: ${variant.марка || "любая"}) на базе ${variant.смц}`,
-    );
+    throw new Error(`Не нашли строку для провала в карточку: ${variant.название}`);
   }
 
-  // Проверяем кнопки
-  const basketBtn = await targetRow.$("button._basket").catch(() => null);
-  const phoneBtn = await targetRow.$("button._phone").catch(() => null);
+  // Переходим в карточку
+  const titleLink = await targetRow.$("td.TovName a");
+  if (!titleLink) {
+    const titleTd = await targetRow.$("td.TovName");
+    if (titleTd) {
+      await titleTd.click();
+    } else {
+      throw new Error(`Не нашли ссылку на карточку товара: ${variant.название}`);
+    }
+  } else {
+    await titleLink.click();
+  }
 
-  if (phoneBtn && !basketBtn) {
-    logger.warn("Позиция только по звонку", {
-      название: variant.название,
-      смц: variant.смц,
-    });
-    throw new Error(`PHONE_ONLY:${variant.название}`);
+  await page.waitForLoadState("domcontentloaded");
+  await delay(1500);
+
+  // ============================================================
+  // ВЫБОР БАЗЫ (ПРОСТОЙ СПОСОБ)
+  // ============================================================
+
+  const целеваяБаза = variant.recommendedBase || null;
+  if (целеваяБаза) {
+    // Просто выбираем базу из списка или таблицы
+    await выбратьБазуНаКарточке(page, целеваяБаза);
+    await delay(500);
+  }
+
+  // ============================================================
+  // НАЖИМАЕМ КНОПКУ "ДОБАВИТЬ В КОРЗИНУ"
+  // ============================================================
+
+  let basketBtn = await page.$('button.catIcon.in._basket, button._basket');
+
+  if (!basketBtn) {
+    basketBtn = await page.$('button[id*="_basket"]');
   }
 
   if (!basketBtn) {
+    const buttons = await page.$$('button');
+    for (const btn of buttons) {
+      const text = await btn.textContent().catch(() => "");
+      if (text && (text.includes("Добавить в корзину") || text.includes("В корзину"))) {
+        basketBtn = btn;
+        break;
+      }
+    }
+  }
+
+  if (!basketBtn) {
+    const screenshotPath = `error_btn_${Date.now()}.png`;
+    await page.screenshot({ path: screenshotPath });
+    logger.error("Кнопка не найдена", { screenshot: screenshotPath });
     throw new Error(`Не нашли кнопку корзины: ${variant.название}`);
   }
 
-  // Кликаем на иконку корзины
-  await basketBtn.click();
+  logger.info("Кнопка найдена", {
+    id: await basketBtn.getAttribute('id'),
+    classes: await basketBtn.getAttribute('class'),
+  });
+
+  await page.evaluate((btn) => {
+    btn.style.display = 'block';
+    btn.style.visibility = 'visible';
+    btn.style.opacity = '1';
+    btn.style.position = 'relative';
+    btn.style.zIndex = '9999';
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+      btn.click();
+    }, 300);
+  }, basketBtn);
+
   await delay(1000);
 
-  // Ждём появления iframe внутри модалки
-  await page.waitForSelector("#addbasket", { state: "visible" });
+  // Ждём модалку
+  try {
+    await page.waitForSelector("#addbasket", { state: "visible", timeout: 5000 });
+  } catch (e) {
+    logger.info("Модалка не появилась, возможно товар уже в корзине");
+    return { adjusted: false, adjustmentMessage: null };
+  }
   await delay(500);
 
-  // Переключаемся на iframe
   const iframeElement = await page.$("#addbasket");
-  const iframe = await iframeElement.contentFrame();
+  if (!iframeElement) {
+    logger.warn("Не нашли iframe #addbasket");
+    return { adjusted: false, adjustmentMessage: null };
+  }
 
-  // Ждём загрузки содержимого iframe
-  await iframe.waitForSelector("#tonns", { state: "visible" });
+  const iframe = await iframeElement.contentFrame();
+  if (!iframe) {
+    logger.warn("Не удалось получить contentFrame");
+    return { adjusted: false, adjustmentMessage: null };
+  }
+
+  try {
+    await iframe.waitForSelector("#tonns", { state: "visible", timeout: 5000 });
+  } catch (e) {
+    logger.warn("Не нашли #tonns в iframe");
+    return { adjusted: false, adjustmentMessage: null };
+  }
   await delay(500);
 
-  // Определяем куда вводить количество
-  if (unit === "м" || unit === "шт") {
-    // Проверяем доступно ли поле метров
-    const metersType = await iframe
-      .$eval("#meters", (el) => el.type)
-      .catch(() => "hidden");
-    console.log("Тип поля метров:", metersType);
+  await ввестиКоличество(iframe, quantity, unit);
 
+  const errorMessage = await проверитьОшибки(iframe);
+  const этоКорректировкаКоличества = errorMessage &&
+    /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
+
+  if (errorMessage && !этоКорректировкаКоличества) {
+    logger.warn("Предупреждение при добавлении в корзину", {
+      название: variant.название,
+      сообщение: errorMessage,
+    });
+    throw new Error(`WARNING:${variant.название}|${errorMessage}`);
+  }
+
+  if (этоКорректировкаКоличества) {
+    logger.warn("Количество скорректировано сайтом", {
+      название: variant.название,
+      сообщение: errorMessage,
+    });
+  }
+
+  await нажатьКнопкуВМодалке(iframe);
+
+  await delay(1000);
+
+  logger.info("Добавлено в корзину (через карточку)", {
+    название: variant.название,
+    смц: variant.смц,
+    ...(этоКорректировкаКоличества ? { скорректировано: errorMessage } : {}),
+  });
+
+  return {
+    adjusted: !!этоКорректировкаКоличества,
+    adjustmentMessage: этоКорректировкаКоличества ? errorMessage : null,
+  };
+}
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+async function ввестиКоличество(iframe, quantity, unit) {
+  if (unit === "м" || unit === "шт") {
+    const metersType = await iframe.$eval("#meters", (el) => el.type).catch(() => "hidden");
     if (metersType !== "hidden") {
-      // Вводим в метры
       await iframe.click("#meters", { clickCount: 3 });
       await delay(200);
       await iframe.type("#meters", String(quantity), { delay: 100 });
     } else {
-      // Метры скрыты — вводим в тонны
       logger.warn("Поле метров скрыто — вводим в тонны", { quantity });
       await iframe.click("#tonns", { clickCount: 3 });
       await delay(200);
       await iframe.type("#tonns", String(quantity), { delay: 100 });
     }
   } else {
-    // Тонны или кг
     await iframe.click("#tonns", { clickCount: 3 });
     await delay(200);
     await iframe.type("#tonns", String(quantity), { delay: 100 });
   }
-
-  // Ждём пересчёта суммы
   await delay(1500);
+}
 
-  // Читаем сообщения об ошибках из iframe. Не полагаемся только на
-  // конкретный селектор p.error — предупреждение о нехватке на складе
-  // может рендериться другой разметкой. Дополнительно сканируем весь текст
-  // модалки на характерные фразы.
-  const errorMessage = await iframe
+async function проверитьОшибки(iframe) {
+  return await iframe
     .evaluate(() => {
       const specific = document.querySelector("p.error");
       if (specific && specific.innerText.trim()) {
         return specific.innerText.trim();
       }
-
       const bodyText = document.body.innerText || "";
       const patterns = [
         /недостаточно[^\n]*/i,
@@ -195,36 +439,12 @@ async function addToCart(variant, quantity, unit = "т") {
         const match = bodyText.match(p);
         if (match) return match[0].trim();
       }
-
       return null;
     })
     .catch(() => null);
+}
 
-  // Сообщение вида "Максимальный объём заказа: 9 т. Количество уменьшено
-  // до 9 т" — НЕ блокирующая ошибка, а уведомление: сайт сам скорректировал
-  // количество и готов добавить товар в меньшем объёме. В этом случае
-  // нужно продолжать (кликать "Добавить в корзину"), а не прерываться —
-  // но обязательно передать текст наверх, чтобы менеджер его увидел.
-  const этоКорректировкаКоличества = errorMessage &&
-    /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
-
-  if (errorMessage && !этоКорректировкаКоличества) {
-    logger.warn("Предупреждение при добавлении в корзину", {
-      название: variant.название,
-      сообщение: errorMessage,
-    });
-    // Блокирующая ошибка — не падаем молча, просто сообщаем и прерываем
-    throw new Error(`WARNING:${variant.название}|${errorMessage}`);
-  }
-
-  if (этоКорректировкаКоличества) {
-    logger.warn("Количество скорректировано сайтом — продолжаем добавление", {
-      название: variant.название,
-      сообщение: errorMessage,
-    });
-  }
-
-  // Нажимаем кнопку — "Добавить в корзину" или "Обновить в корзине"
+async function нажатьКнопкуВМодалке(iframe) {
   await iframe.evaluate(() => {
     const buttons = document.querySelectorAll("button");
     const btn = Array.from(buttons).find(
@@ -234,28 +454,69 @@ async function addToCart(variant, quantity, unit = "т") {
     );
     if (btn) btn.click();
   });
+}
 
-  // Раньше здесь была проверка "модалка должна закрыться в течение 5с,
-  // иначе считаем что не добавилось" — убрал её: она давала ложные
-  // срабатывания (репортила NOT_ADDED даже когда товар реально попадал
-  // в корзину), т.к. предположение о видимости #addbasket после успеха
-  // оказалось неверным. Раз ошибки уже отлавливаются через p.error выше —
-  // после клика просто ждём и считаем успехом.
-  await delay(1000);
+async function выбратьБазуНаКарточке(page, целеваяБаза) {
+  logger.info("Выбираем базу на карточке", { целеваяБаза });
 
-  logger.info("Добавлено в корзину", {
-    название: variant.название,
-    смц: variant.смц,
-    ...(этоКорректировкаКоличества ? { скорректировано: errorMessage } : {}),
-  });
+  let baseFound = false;
 
-  // Возвращаем информацию о том, было ли количество скорректировано сайтом —
-  // вызывающий код (processOrder) может использовать это, чтобы показать
-  // менеджеру точный текст предупреждения вместо молчаливого "успеха"
-  return {
-    adjusted: !!этоКорректировкаКоличества,
-    adjustmentMessage: этоКорректировкаКоличества ? errorMessage : null,
-  };
+  // Способ 1: Список баз (полоса, квадрат)
+  const baseItems = await page.$$('ul.packs li.ipacks');
+  for (const item of baseItems) {
+    const text = await item.textContent();
+    if (text && text.trim() === целеваяБаза) {
+      await item.click();
+      baseFound = true;
+      logger.info("Выбрана база через список", { база: целеваяБаза });
+      await delay(500);
+      break;
+    }
+  }
+
+  // Способ 2: Таблица с базами (круг, балка, лист)
+  if (!baseFound) {
+    const baseRows = await page.$$('table#tab_main1 tbody tr');
+    for (const row of baseRows) {
+      const baseName = await row.getAttribute('data-base');
+      if (baseName && baseName === целеваяБаза) {
+        // Пробуем кликнуть на первую ячейку
+        const firstCell = await row.$('td:first-child');
+        if (firstCell) {
+          await firstCell.click();
+          baseFound = true;
+          logger.info("Выбрана база через ячейку таблицы", { база: целеваяБаза });
+          await delay(500);
+          break;
+        }
+        // Запасной вариант — клик на строку
+        await row.click();
+        baseFound = true;
+        logger.info("Выбрана база через строку таблицы", { база: целеваяБаза });
+        await delay(500);
+        break;
+      }
+    }
+  }
+
+  // Способ 3: Блок "Отгрузка"
+  if (!baseFound) {
+    const baseElements = await page.$$('.base-item, .warehouse-item, .stock-item');
+    for (const el of baseElements) {
+      const text = await el.textContent();
+      if (text && text.trim() === целеваяБаза) {
+        await el.click();
+        baseFound = true;
+        logger.info("Выбрана база через элемент", { база: целеваяБаза });
+        await delay(500);
+        break;
+      }
+    }
+  }
+
+  if (!baseFound) {
+    logger.warn("Не найдена база в карточке", { целеваяБаза });
+  }
 }
 
 module.exports = { addToCart };
