@@ -16,6 +16,7 @@ const { saveFeedback, getFeedback } = require("../utils/feedback");
 const { getOrder, getRecentOrders } = require("../utils/orderLogger");
 const { sendAlert } = require("../utils/alerts");
 const { handleBasesCommand } = require('./handlers/basePriority');
+const { handleCollectCommand } = require('./handlers/collect');
 const { handleDecisionCommand } = require('./handlers/decision');
 const { экспортироватьЗаявку } = require('../scraper/exportToExcel');
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
@@ -23,6 +24,8 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 bot.command('bases', handleBasesCommand);
 
 bot.command('decision', handleDecisionCommand);
+
+bot.command('collect', handleCollectCommand);
 
 // Команда /export — экспорт заявки в Excel
 bot.command('export', async (ctx) => {

@@ -370,4 +370,4 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
   };
 }
 
-module.exports = { processOrder, searchPositions, finalizeOrder, вариантПоПозицииИзРекомендации };
+module.exports = { processOrder, searchPositions, finalizeOrder, findPosition, вариантПоПозицииИзРекомендации };

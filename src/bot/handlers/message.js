@@ -2,8 +2,19 @@
  * handlers/message.js
  *
  * Обрабатывает входящие заявки от менеджера.
- * Полный цикл: парсинг → поиск → подбор базы (может спросить подтверждение)
- * → корзина → скриншот → подтверждение заказа → PDF
+ *
+ * ВАЖНО (текущий режим — "Вариант А"): пока не отточим поиск и подбор
+ * базы/цены до уверенного состояния, полный цикл (корзина → скриншот →
+ * подтверждение → PDF) ПРИОСТАНОВЛЕН. Вместо него на каждую заявку бот
+ * присылает Excel-таблицу со всеми кандидатами по каждой позиции —
+ * выбранный, отклонённые (с причиной) и не найденные. Это инструмент
+ * проверки и дообучения поиска (см. scraper/exportToExcel.js).
+ *
+ * Код полного цикла (sendOrderSummary, askBaseConfirmation и т.п.) НЕ
+ * удалён — он остаётся в этом файле и используется handlers/callback.js
+ * для confirm_order/cancel_order/base_yes/base_no. Когда решим вернуться
+ * к полной автоматизации — нужно будет просто заменить тело handleMessage
+ * обратно на вызов processOrder (см. историю до этой правки).
  */
 
 const fs = require("fs");
@@ -11,6 +22,7 @@ const { Markup } = require("telegraf");
 const logger = require("../../utils/logger");
 const { parseOrder } = require("../../agent/parser");
 const { processOrder } = require("../../scraper/index");
+const { экспортироватьЗаявку } = require("../../scraper/exportToExcel");
 const { getSession, setSession, clearSession } = require("../../utils/session");
 const { saveMapping } = require("../../agent/searchMapManager");
 const { addToQueue } = require("../../utils/queue");
@@ -19,6 +31,62 @@ const { createOrder, saveOrder, logOrder } = require("../../utils/orderLogger");
 const { sendAlert } = require("../../utils/alerts");
 
 async function handleMessage(ctx) {
+  const text = ctx.message.text;
+  const userId = ctx.from.id;
+  const messageId = ctx.message.message_id;
+  const session = getSession(userId);
+
+  console.log(`=== handleMessage: userId=${userId} messageId=${messageId} text="${text.substring(0, 50)}"`)
+  console.log(`=== Сессия: processing=${session.processing} waitingForSearchQuery=${!!session.waitingForSearchQuery}`)
+
+  // Проверяем доступ
+  if (!isAllowed(userId)) {
+    await ctx.reply("⛔ У вас нет доступа к этому боту.");
+    return;
+  }
+
+  // Проверяем не обрабатывается ли уже заявка (используем ту же очередь/
+  // флаг, что и раньше — браузер по-прежнему один на всех пользователей)
+  if (session.processing) {
+    await ctx.reply("⏳ Подожди — предыдущая заявка ещё обрабатывается.");
+    return;
+  }
+
+  setSession(userId, { processing: true });
+  logger.info("Получена заявка (режим: Excel-экспорт)", { userId, text });
+
+  try {
+    await addToQueue(
+      async () => {
+        await экспортироватьЗаявку(ctx, text);
+      },
+      async (queuePosition) => {
+        await ctx.reply(`⏳ Ваша заявка в очереди. Позиция: ${queuePosition}`);
+      }
+    );
+  } catch (err) {
+    logger.error("Ошибка обработки заявки", { userId, error: err.message, stack: err.stack });
+
+    await sendAlert(
+      { telegram: ctx.telegram },
+      `Ошибка заявки (Excel-экспорт)\n@${ctx.from.username}\n${err.message}`
+    );
+
+    await ctx.reply(`❌ Ошибка: ${err.message}`);
+  } finally {
+    const currentSession = getSession(userId);
+    if (currentSession.processing) {
+      setSession(userId, { ...currentSession, processing: false });
+    }
+  }
+}
+
+// ============================================================
+// НИЖЕ — код полного цикла (пока не вызывается из handleMessage, см.
+// комментарий в шапке файла). Используется handlers/callback.js.
+// ============================================================
+
+async function handleMessageFullCycle(ctx) {
   const text = ctx.message.text;
   const userId = ctx.from.id;
   const messageId = ctx.message.message_id;

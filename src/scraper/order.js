@@ -6,6 +6,7 @@
 
 const logger = require('../utils/logger')
 const { getPage } = require('./browser')
+const { authorize } = require('./auth')
 const { getBasePriority } = require('../utils/basePriorityStore')
 const path = require('path')
 const fs = require('fs')
@@ -223,12 +224,14 @@ async function clearCart(page) {
 async function screenshotCart() {
   // Создаём НОВУЮ страницу, чтобы не зависеть от состояния текущей
   const page = await getPage();
-  
+
+  const CART_URL = 'https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1';
+
   // Если страница уже в корзине, перезагружаем
   const currentUrl = page.url();
   if (!currentUrl.includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
     logger.info('Переходим в корзину для скриншота');
-    await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1', {
+    await page.goto(CART_URL, {
       timeout: 30000,
       waitUntil: 'domcontentloaded'
     });
@@ -236,8 +239,42 @@ async function screenshotCart() {
     logger.info('Уже на странице корзины, обновляем');
     await page.reload({ waitUntil: 'domcontentloaded' });
   }
-  
+
   await delay(1000);
+
+  // ВАЖНО: проверяем, что переход/перезагрузка реально привели нас на
+  // корзину, а не куда-то увело (например, редирект на главную из-за
+  // проблем с сессией, или из-за параллельной навигации того же общего
+  // page откуда-то ещё). Раньше бывало, что скриншот тихо снимался с
+  // главной страницы вместо корзины — теперь ловим это явно, а не молча.
+  let реальныйUrl = page.url();
+  if (!реальныйUrl.includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
+    logger.warn('После перехода мы НЕ на странице корзины — похоже на потерю сессии, переавторизуемся и пробуем ещё раз', {
+      ожидали: CART_URL,
+      реальныйUrl,
+    });
+
+    // Если дело в слетевшей сессии (а редирект на главную вместо
+    // личного раздела — характерный признак именно этого) — простой
+    // повторный goto на тот же URL ничего не даст, это уже проверено:
+    // раньше повтор БЕЗ переавторизации тоже приводил на главную. Сначала
+    // логинимся заново, потом уже повторяем переход.
+    try {
+      await authorize();
+    } catch (err) {
+      logger.error('Не удалось переавторизоваться перед повтором скриншота', { error: err.message });
+    }
+
+    await page.goto(CART_URL, { timeout: 30000, waitUntil: 'domcontentloaded' });
+    await delay(1000);
+
+    реальныйUrl = page.url();
+    if (!реальныйUrl.includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
+      logger.error('Повторный переход тоже не попал на корзину — скриншот будет неверным', {
+        реальныйUrl,
+      });
+    }
+  }
 
   const outputDir = path.join(__dirname, '../../downloads');
   if (!fs.existsSync(outputDir)) {
@@ -247,7 +284,7 @@ async function screenshotCart() {
   const screenshotPath = path.join(outputDir, `cart_${Date.now()}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
 
-  logger.info('Скриншот корзины сохранён', { path: screenshotPath });
+  logger.info('Скриншот корзины сохранён', { path: screenshotPath, url: page.url() });
   return screenshotPath;
 }
 

@@ -1,202 +1,454 @@
 /**
  * exportToExcel.js
  *
- * Экспорт всей заявки в Excel таблицу.
+ * Экспорт всей заявки в Excel — ОСНОВНАЯ фича для отладки поиска.
+ * Менеджер присылает заявку → бот ищет каждую позицию → присылает
+ * .xlsx со ВСЕМИ кандидатами (не только выбранным): что подошло, что
+ * отклонено и почему. Это тот же принцип, что в scraper/decisionTable.js
+ * (оцениВсеВарианты), просто выгружен в таблицу вместо текста/JSON —
+ * специально переиспользую ту же функцию, чтобы не разъезжались две
+ * параллельные логики "что подходит, а что нет".
  */
 
-const fs = require('fs');
-const path = require('path');
-const { searchPosition } = require('./search');
-const { parseOrder } = require('../agent/parser');
+const path = require('path')
+const fs = require('fs')
+const ExcelJS = require('exceljs')
+const logger = require('../utils/logger')
+const { findPosition } = require('./index')
+const { оцениВсеВарианты } = require('./search')
+const { разберБазы } = require('./baseOptimizer')
+const { getBasePriority, ИЗВЕСТНЫЕ_БАЗЫ } = require('../utils/basePriorityStore')
+const { parseOrder } = require('../agent/parser')
+
+const ЦВЕТ_ВЫБРАН = 'FFD9F2D9'    // светло-зелёный — выбранный вариант
+const ЦВЕТ_ОТКЛОНЁН = 'FFFCE8E8' // светло-красный — отклонённый вариант
+const ЦВЕТ_НЕ_НАЙДЕНО = 'FFFFF3CD' // светло-жёлтый — позиция не найдена вообще
+const ЦВЕТ_ЗАГОЛОВОК = 'FF2C3E50'
+
+// Кэш последней собранной таблицы по каждому пользователю — нужен для
+// команды /collect (bot/handlers/collect.js), чтобы не пересчитывать
+// поиск заново, а взять уже найденные варианты и сразу заполнить
+// корзину. Живёт только в памяти процесса (как и utils/session.js) —
+// сбрасывается при перезапуске бота, это ожидаемо.
+const кэшТаблиц = new Map() // userId → { время, text, позицииДляСводки }
+
+function получиКэшСводки(userId) {
+  return кэшТаблиц.get(userId) || null
+}
 
 /**
- * Формирует Excel таблицу по всей заявке
+ * Определяет "выбранный" вариант среди прошедших фильтр — та же логика
+ * приоритетов, что в scraper/index.js.selectBestVariant: ГОСТ > чёткая
+ * длина > минимальная цена. Только для наглядности в таблице (сам выбор
+ * в корзину эта функция не делает).
+ */
+function этоГост(v) {
+  return v.название.toLowerCase().includes('гост')
+}
+
+function этоТУ(v) {
+  const название = v.название.toLowerCase()
+  const марка = (v.марка || '').toLowerCase()
+  return /(^|\s)ту(\s|$)/i.test(название) || марка.startsWith('ту')
+}
+
+function имеетОпределённуюДлину(v) {
+  return /^\d+$/.test(String(v.длина || '').trim())
+}
+
+// Лучший вариант ВНУТРИ уже сузенной группы — чёткая длина > мин. цена
+function лучшийВГруппе(группа) {
+  if (группа.length === 0) return null
+  let источник = группа
+  const сДлиной = источник.filter(имеетОпределённуюДлину)
+  if (сДлиной.length > 0) источник = сДлиной
+  return источник.reduce((min, v) => (v.цена_от_1т < min.цена_от_1т ? v : min))
+}
+
+/**
+ * Выбирает "выбранный" вариант(ы) среди прошедших фильтр. Обычно
+ * возвращает МАССИВ ИЗ ОДНОГО элемента (ГОСТ > чёткая длина > мин. цена —
+ * как и раньше). Но если менеджер указал "(ГОСТ/ТУ)"/"(ТУ/ГОСТ)"
+ * (параметры.спецификация.нужны_оба) — возвращает ДВА элемента: лучший
+ * ГОСТ и лучший ТУ, в порядке приоритета (кто назван первым в скобках).
+ */
+function выбериЛучшего(прошедшие, position) {
+  if (прошедшие.length === 0) return []
+
+  const спец = position?.параметры?.спецификация || {}
+
+  if (спец.нужны_оба) {
+    const лучшийГост = лучшийВГруппе(прошедшие.filter(этоГост))
+    const лучшийТУ = лучшийВГруппе(прошедшие.filter(этоТУ))
+
+    const результат = спец.приоритет === 'ТУ'
+      ? [лучшийТУ, лучшийГост]
+      : [лучшийГост, лучшийТУ]
+
+    const непустые = результат.filter(Boolean)
+    // Если по факту нашёлся только один вид (например ТУ вообще нет в
+    // наличии) — не оставляем пустых мест, просто возвращаем что есть
+    return непустые.length > 0 ? непустые : [лучшийВГруппе(прошедшие)]
+  }
+
+  // Обычный случай — один лучший, с приоритетом ГОСТ (если не попросили
+  // явно ТУ — тогда ТУ-варианты уже единственные, что прошли фильтр)
+  let источник = прошедшие.filter(этоГост)
+  if (источник.length === 0) источник = прошедшие
+  return [лучшийВГруппе(источник)]
+}
+
+/**
+ * Формирует и отправляет Excel-таблицу по всей заявке.
+ * Вызывается прямо из обработчика обычного текстового сообщения —
+ * без отдельной команды, см. bot/handlers/message.js.
  */
 async function экспортироватьЗаявку(ctx, text) {
   try {
-    // 1. Парсим заявку
-    await ctx.reply('🔍 Анализирую заявку...');
-    const positions = await parseOrder(text);
-    
+    await ctx.reply('🔍 Анализирую заявку...')
+    const positions = await parseOrder(text)
+
     if (positions.length === 0) {
-      await ctx.reply('❌ Не нашел позиций в заявке.');
-      return;
+      await ctx.reply('❌ Не нашёл позиций в заявке.')
+      return
     }
 
-    await ctx.reply(`📋 Нашел ${positions.length} позиций. Ищу на mc.ru...`);
+    await ctx.reply(`📋 Нашёл ${positions.length} позиций. Ищу на mc.ru...`)
 
-    // 2. Ищем каждую позицию
-    const результаты = [];
-    let всего = 0;
-    let найдено = 0;
+    const строкиТаблицы = []
+    const позицииДляСводки = [] // {position, прошедшие} — для листа "Сводная по базам"
+    let найдено = 0
 
-    for (const position of positions) {
-      const result = await searchPosition(position.поисковый_запрос, position);
-      
-      if (result.found && result.variants.length > 0) {
-        найдено++;
-        // Берем все варианты
-        for (const variant of result.variants) {
-          результаты.push({
-            позиция: position.название,
-            количество: position.количество,
-            единица: position.единица,
-            название: variant.название,
-            размер: variant.размер || '',
-            марка: variant.марка || '',
-            длина: variant.длина || '',
-            смц: variant.смц || '',
-            цена_от_1т: variant.цена_от_1т || '',
-            цена_от_5т: variant.цена_от_5т || '',
-            цена_от_10т: variant.цена_от_10т || '',
-            остаток: variant.остаток || '',
-            гост_ту: variant.название?.toLowerCase().includes('гост') ? 'ГОСТ' : 'ТУ',
-            ссылка: variant.sourceUrl || ''
-          });
-        }
-      } else {
-        // Запоминаем, что не нашли
-        результаты.push({
-          позиция: position.название,
-          количество: position.количество,
-          единица: position.единица,
-          название: '❌ НЕ НАЙДЕНО',
-          размер: '',
-          марка: '',
-          длина: '',
-          смц: '',
-          цена_от_1т: '',
-          цена_от_5т: '',
-          цена_от_10т: '',
-          остаток: '',
-          гост_ту: '',
-          ссылка: ''
-        });
+    for (let i = 0; i < positions.length; i++) {
+      const position = positions[i]
+      await ctx.reply(`🔍 Ищу ${i + 1}/${positions.length}: ${position.название}...`)
+
+      let найденное
+      try {
+        найденное = await findPosition(position, async (msg) => { await ctx.reply(msg) })
+      } catch (err) {
+        logger.error('Ошибка поиска позиции при экспорте', {
+          название: position.название,
+          error: err.message,
+        })
+        строкиТаблицы.push({
+          позиция: position,
+          вариант: null,
+          статус: 'ошибка поиска',
+          причина: err.message,
+        })
+        позицииДляСводки.push({ position, прошедшие: [] })
+        continue
+      }
+
+      const result = найденное.result
+      // Берём сырые строки (rawRows), если есть — так в таблице видно и
+      // отклонённых кандидатов с причиной, а не только то, что прошло
+      // фильтр. Если rawRows почему-то нет — используем то, что есть.
+      const кандидаты = найденное.rawRows?.length ? найденное.rawRows : (result.variants || [])
+
+      if (кандидаты.length === 0) {
+        строкиТаблицы.push({
+          позиция: position,
+          вариант: null,
+          статус: 'не найдено',
+          причина: 'сайт не вернул ни одного результата по этому запросу',
+        })
+        позицииДляСводки.push({ position, прошедшие: [] })
+        continue
+      }
+
+      const оценённые = оцениВсеВарианты(кандидаты, position)
+      const прошедшие = оценённые.filter(r => r.прошёл).map(r => r.вариант)
+      const выбранные = выбериЛучшего(прошедшие, position)
+
+      if (выбранные.length > 0) найдено++
+      позицииДляСводки.push({ position, прошедшие })
+
+      for (const { вариант, прошёл, причина } of оценённые) {
+        строкиТаблицы.push({
+          позиция: position,
+          вариант,
+          статус: прошёл
+            ? (выбранные.includes(вариант) ? 'выбран' : 'подходит')
+            : 'отклонён',
+          причина: причина || '',
+        })
       }
     }
 
-    // 3. Формируем CSV
-    const заголовки = [
-      'Позиция',
-      'Количество',
-      'Ед.',
-      'Название на сайте',
-      'Размер',
-      'Марка',
-      'Длина (мм)',
-      'СМЦ',
-      'Цена от 1т (₽)',
-      'Цена от 5т (₽)',
-      'Цена от 10т (₽)',
-      'Остаток',
-      'ГОСТ/ТУ',
-      'Ссылка'
-    ];
+    // Кэшируем для /collect — до построения самого xlsx, чтобы кэш
+    // сохранился, даже если что-то пойдёт не так при генерации файла
+    кэшТаблиц.set(ctx.from.id, {
+      время: Date.now(),
+      text,
+      позицииДляСводки,
+    })
 
-    const строки = результаты.map(r => [
-      r.позиция,
-      r.количество,
-      r.единица,
-      r.название,
-      r.размер,
-      r.марка,
-      r.длина,
-      r.смц,
-      r.цена_от_1т,
-      r.цена_от_5т,
-      r.цена_от_10т,
-      r.остаток,
-      r.гост_ту,
-      r.ссылка
-    ]);
+    const filepath = await построитьXlsx(строкиТаблицы, позицииДляСводки)
 
-    const csv = сформироватьCSV(заголовки, строки);
-
-    // 4. Сохраняем и отправляем
-    const filename = `заявка_${Date.now()}.csv`;
-    const filepath = path.join(__dirname, '../../downloads', filename);
-    const BOM = '\uFEFF';
-    fs.writeFileSync(filepath, BOM + csv, 'utf8');
-
-    // 5. Отправляем
     await ctx.replyWithDocument(
-      { source: filepath, filename: `заявка_${new Date().toISOString().slice(0,10)}.csv` },
-      { 
-        caption: `📊 Таблица по заявке:\n• Всего позиций: ${positions.length}\n• Найдено: ${найдено}\n• Не найдено: ${positions.length - найдено}`
+      { source: filepath, filename: `заявка_${new Date().toISOString().slice(0, 10)}.xlsx` },
+      {
+        caption:
+          `📊 Таблица по заявке:\n` +
+          `• Всего позиций: ${positions.length}\n` +
+          `• Найдено (есть выбор): ${найдено}\n` +
+          `• Не найдено: ${positions.length - найдено}\n\n` +
+          `💡 Зелёным — выбранный вариант, красным — отклонённые (с причиной в последней колонке), жёлтым — позиция вообще не найдена.`,
       }
-    );
+    )
 
-    // 6. Показываем рекомендацию
-    await показатьРекомендацию(ctx, результаты);
-
-    // 7. Удаляем файл
-    fs.unlinkSync(filepath);
-
+    fs.unlinkSync(filepath)
   } catch (err) {
-    logger.error('Ошибка экспорта заявки', { error: err.message });
-    await ctx.reply(`❌ Ошибка: ${err.message}`);
+    logger.error('Ошибка экспорта заявки', { error: err.message, stack: err.stack })
+    await ctx.reply(`❌ Ошибка: ${err.message}`)
   }
 }
 
 /**
- * Формирует CSV строку
+ * Строит .xlsx с форматированием и возвращает путь к временному файлу.
+ * @param {Array} строкиТаблицы - для листа "Заявка" (детальный, все кандидаты)
+ * @param {Array<{position, прошедшие}>} позицииДляСводки - для листа
+ *        "Сводная по базам" (только подходящие варианты)
  */
-function сформироватьCSV(заголовки, строки) {
-  const экранировать = (поле) => {
-    if (поле === null || поле === undefined) return '';
-    const str = String(поле);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
+async function построитьXlsx(строкиТаблицы, позицииДляСводки) {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'metalloprokatik bot'
+  workbook.created = new Date()
 
-  const headerRow = заголовки.map(экранировать).join(',');
-  const dataRows = строки.map(row => 
-    row.map(экранировать).join(',')
-  );
-  return [headerRow, ...dataRows].join('\n');
+  построитьЛистЗаявка(workbook, строкиТаблицы)
+  построитьЛистСводки(workbook, позицииДляСводки)
+
+  const outputDir = path.join(__dirname, '../../downloads')
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true })
+  }
+
+  const filepath = path.join(outputDir, `заявка_${Date.now()}.xlsx`)
+  await workbook.xlsx.writeFile(filepath)
+
+  return filepath
+}
+
+function построитьЛистЗаявка(workbook, строкиТаблицы) {
+  const sheet = workbook.addWorksheet('Заявка', {
+    views: [{ state: 'frozen', ySplit: 1 }], // закрепляем строку заголовка
+  })
+
+  const колонки = [
+    { header: 'Позиция (запрошено)', key: 'позиция', width: 28 },
+    { header: 'Кол-во', key: 'количество', width: 10 },
+    { header: 'Ед.', key: 'единица', width: 6 },
+    { header: 'Статус', key: 'статус', width: 12 },
+    { header: 'Название на сайте', key: 'название', width: 40 },
+    { header: 'Размер', key: 'размер', width: 10 },
+    { header: 'Марка', key: 'марка', width: 14 },
+    { header: 'Длина', key: 'длина', width: 10 },
+    { header: 'СМЦ (база)', key: 'смц', width: 30 },
+    { header: 'Цена от 1т ₽', key: 'цена', width: 12 },
+    { header: 'ГОСТ/ТУ', key: 'гост', width: 9 },
+    { header: 'Ссылка', key: 'ссылка', width: 12 },
+    { header: 'Причина отклонения', key: 'причина', width: 45 },
+  ]
+
+  sheet.columns = колонки
+
+  // Форматируем заголовок
+  const headerRow = sheet.getRow(1)
+  headerRow.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } }
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ЦВЕТ_ЗАГОЛОВОК } }
+  headerRow.alignment = { vertical: 'middle', horizontal: 'left' }
+  headerRow.height = 22
+
+  for (const строка of строкиТаблицы) {
+    const { позиция, вариант, статус, причина } = строка
+
+    const этоГост = вариант?.название?.toLowerCase().includes('гост')
+      ? 'ГОСТ'
+      : (вариант?.название?.toLowerCase().includes('ту') ? 'ТУ' : '')
+
+    const row = sheet.addRow({
+      позиция: позиция.название,
+      количество: позиция.количество,
+      единица: позиция.единица,
+      статус,
+      название: вариант?.название || '—',
+      размер: вариант?.размер || '',
+      марка: вариант?.марка || '',
+      длина: вариант?.длина || '',
+      смц: вариант?.смц || '',
+      цена: вариант?.цена_от_1т || '',
+      гост: этоГост,
+      ссылка: (вариант?.cardUrl || вариант?.sourceUrl)
+        ? { text: 'Открыть →', hyperlink: вариант.cardUrl || вариант.sourceUrl }
+        : '',
+      причина,
+    })
+
+    row.font = { name: 'Arial', size: 10 }
+    row.alignment = { vertical: 'top', wrapText: true }
+
+    // Отдельное форматирование именно для ячейки со ссылкой — синим и
+    // подчёркнутым, как обычно выглядят гиперссылки, иначе она сольётся
+    // с обычным текстом и не будет очевидно кликабельной
+    if (вариант?.cardUrl || вариант?.sourceUrl) {
+      const ссылкаКолонка = колонки.findIndex((c) => c.key === 'ссылка') + 1
+      row.getCell(ссылкаКолонка).font = {
+        name: 'Arial', size: 10, color: { argb: 'FF1155CC' }, underline: true,
+      }
+    }
+
+    let цвет = null
+    if (статус === 'выбран') цвет = ЦВЕТ_ВЫБРАН
+    else if (статус === 'отклонён') цвет = ЦВЕТ_ОТКЛОНЁН
+    else if (статус === 'не найдено' || статус === 'ошибка поиска') цвет = ЦВЕТ_НЕ_НАЙДЕНО
+
+    if (цвет) {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: цвет } }
+      })
+    }
+  }
+
+  // Автофильтр по заголовкам — удобно быстро отфильтровать только
+  // "отклонён" или конкретную позицию
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: колонки.length },
+  }
 }
 
 /**
- * Показывает рекомендацию по заявке
+ * Лист "Сводная по базам" — строки: позиции, столбцы: базы, в ячейках:
+ * цена ПОДХОДЯЩЕГО варианта на этой базе (отклонённые сюда не попадают
+ * вообще). Если для позиции на конкретной базе подходящего варианта
+ * нет — ячейка пустая.
+ *
+ * Если у позиции есть несколько подходящих вариантов, покрывающих одну
+ * и ту же базу (например ГОСТ и ТУ, или разные длины) — берём лучший
+ * по тем же приоритетам, что и везде: ГОСТ > чёткая длина > мин. цена.
  */
-async function показатьРекомендацию(ctx, результаты) {
-  // Группируем по базам
-  const базы = {};
-  for (const r of resultados) {
-    if (r.смц && r.название !== '❌ НЕ НАЙДЕНО') {
-      if (!базы[r.смц]) базы[r.смц] = [];
-      базы[r.смц].push(r);
+function построитьЛистСводки(workbook, позицииДляСводки) {
+  const приоритет = getBasePriority()
+
+  // Собираем полный список баз, встретившихся хоть у одной позиции —
+  // и сортируем по настроенному приоритету (/bases), остальные — following
+  const всеБазы = new Set()
+  for (const { прошедшие } of позицииДляСводки) {
+    for (const v of прошедшие) {
+      for (const б of разберБазы(v.смц)) всеБазы.add(б)
     }
   }
 
-  // Находим лучшую базу
-  let лучшаяБаза = null;
-  let максПозиций = 0;
+  // Оставляем ТОЛЬКО московские базы (белый список ИЗВЕСТНЫЕ_БАЗЫ) —
+  // региональные (Нижний Новгород, Самара, Пенза, Курск, Ростов-на-Дону,
+  // С.Петербург и т.п.) в сводную таблицу не попадают, возим только по
+  // Москве и области.
+  const базыСписок = [...всеБазы]
+    .filter((б) => ИЗВЕСТНЫЕ_БАЗЫ.includes(б))
+    .sort((a, b) => {
+      const иА = приоритет.indexOf(a)
+      const иБ = приоритет.indexOf(b)
+      return (иА === -1 ? 999 : иА) - (иБ === -1 ? 999 : иБ)
+    })
 
-  for (const [база, позиции] of Object.entries(базы)) {
-    if (позиции.length > максПозиций) {
-      максПозиций = позиции.length;
-      лучшаяБаза = база;
+  const sheet = workbook.addWorksheet('Сводная по базам', {
+    views: [{ state: 'frozen', xSplit: 1, ySplit: 1 }],
+  })
+
+  const колонки = [
+    { header: 'Позиция', key: 'позиция', width: 28 },
+    ...базыСписок.map((база) => ({ header: база, key: база, width: 14 })),
+  ]
+  sheet.columns = колонки
+
+  const headerRow = sheet.getRow(1)
+  headerRow.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } }
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ЦВЕТ_ЗАГОЛОВОК } }
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' }
+  headerRow.height = 22
+
+  // Строит одну строку сводки для заданного набора кандидатов (уже
+  // отфильтрованных по нужной спецификации, если это применимо) —
+  // переиспользуется и для обычной позиции (одна строка), и для
+  // ГОСТ/ТУ-сравнения (две строки на одну и ту же позицию).
+  function добавьСтроку(названиеСтроки, кандидаты) {
+    const данныеСтроки = { позиция: названиеСтроки }
+    const ценыВСтроке = []
+    const ссылкиВСтроке = {}
+
+    for (const база of базыСписок) {
+      const наЭтойБазе = кандидаты.filter((v) => разберБазы(v.смц).includes(база))
+      const лучший = лучшийВГруппе(наЭтойБазе)
+      if (лучший) {
+        данныеСтроки[база] = лучший.цена_от_1т
+        ценыВСтроке.push({ база, цена: лучший.цена_от_1т })
+        if (лучший.cardUrl || лучший.sourceUrl) {
+          ссылкиВСтроке[база] = лучший.cardUrl || лучший.sourceUrl
+        }
+      }
+    }
+
+    const row = sheet.addRow(данныеСтроки)
+    row.font = { name: 'Arial', size: 10 }
+    row.alignment = { vertical: 'middle', horizontal: 'center' }
+    row.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' }
+
+    базыСписок.forEach((база, idx) => {
+      const cell = row.getCell(idx + 2)
+      cell.numFmt = '# ##0'
+      if (ссылкиВСтроке[база]) {
+        cell.value = { text: String(данныеСтроки[база] ?? ''), hyperlink: ссылкиВСтроке[база] }
+        cell.font = { name: 'Arial', size: 10, color: { argb: 'FF1155CC' }, underline: true }
+      }
+    })
+
+    if (ценыВСтроке.length > 0) {
+      const минЦена = Math.min(...ценыВСтроке.map((c) => c.цена))
+      for (const { база, цена } of ценыВСтроке) {
+        if (цена === минЦена) {
+          const колонкаIdx = базыСписок.indexOf(база) + 2
+          row.getCell(колонкаIdx).fill = {
+            type: 'pattern', pattern: 'solid', fgColor: { argb: ЦВЕТ_ВЫБРАН },
+          }
+        }
+      }
+    } else {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ЦВЕТ_НЕ_НАЙДЕНО } }
+      })
     }
   }
 
-  let рекомендация = '💡 Рекомендация:\n';
-  if (лучшаяБаза) {
-    рекомендация += `• Лучшая база: ${лучшаяБаза} (покрывает ${максПозиций} позиций)\n`;
+  for (const { position, прошедшие } of позицииДляСводки) {
+    const спец = position?.параметры?.спецификация || {}
+
+    if (спец.нужны_оба) {
+      // Раздельно по ГОСТ и ТУ — иначе сводная молча показывала бы
+      // только ГОСТ, игнорируя явно запрошенное сравнение (или
+      // приоритет ТУ, если он был указан "(ТУ/ГОСТ)")
+      const гостКандидаты = прошедшие.filter(этоГост)
+      const туКандидаты = прошедшие.filter(этоТУ)
+
+      if (гостКандидаты.length > 0) {
+        добавьСтроку(`${position.название} (ГОСТ)`, гостКандидаты)
+      }
+      if (туКандидаты.length > 0) {
+        добавьСтроку(`${position.название} (ТУ)`, туКандидаты)
+      }
+      if (гостКандидаты.length === 0 && туКандидаты.length === 0) {
+        добавьСтроку(position.название, прошедшие) // ни одного — покажем как есть (пусто)
+      }
+    } else {
+      добавьСтроку(position.название, прошедшие)
+    }
   }
 
-  // Находим самую дешевую позицию
-  const дешевые = resultados
-    .filter(r => r.цена_от_1т && r.название !== '❌ НЕ НАЙДЕНО')
-    .sort((a, b) => a.цена_от_1т - b.цена_от_1т);
-
-  if (дешевые.length > 0) {
-    рекомендация += `• Самая дешевая позиция: ${дешевые[0].название} (${дешевые[0].цена_от_1т} ₽/т)\n`;
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: колонки.length },
   }
-
-  await ctx.reply(рекомендация);
 }
 
-module.exports = { экспортироватьЗаявку };
+module.exports = { экспортироватьЗаявку, получиКэшСводки, выбериЛучшего }
