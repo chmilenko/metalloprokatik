@@ -13,8 +13,6 @@ const { getBasePriority } = require('../utils/basePriorityStore');
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Компактное представление варианта для логов — только то, что нужно
-// для разбора неожиданного выбора, без лишних полей
 function краткоДляЛога(v) {
   return {
     название: v.название,
@@ -25,20 +23,109 @@ function краткоДляЛога(v) {
   };
 }
 
+// Проверяет — есть ли среди сырых (ещё не отфильтрованных) строк
+// кандидаты С ТЕМ ЖЕ размером/шириной/диаметром, что и запрошено, но
+// другой стенкой. Если да — это высокая уверенность, что нужного товара
+// просто нет в наличии у этого размера: категория на сайте одна и та
+// же, переформулировка запроса не покажет данных, которых там физически
+// нет. Возвращает массив доступных стенок (для подсказки менеджеру) или
+// null, если сигнала недостаточно (тогда идём в обычный AI-перебор).
+function доступныеСтенкиПриТомЖеРазмере(position, rawRows) {
+  const стенкаЗапроса = position.параметры?.стенка;
+  if (стенкаЗапроса == null || !rawRows || rawRows.length === 0) return null;
+
+  const ожидаемыйРазмер =
+    position.параметры?.диаметр ?? position.параметры?.ширина ?? position.параметры?.номер;
+  if (ожидаемыйРазмер == null) return null;
+
+  const совпаденияПоРазмеру = rawRows.filter((r) => {
+    const размерСтроки = String(r.размер || '').trim().replace(',', '.');
+    if (размерСтроки !== String(ожидаемыйРазмер).trim()) return false;
+
+    // Для прямоугольной трубы (задана вторая сторона отдельно от первой)
+    // нужно совпадение и по ВТОРОЙ стороне тоже — иначе смешаются стенки
+    // от совсем другого размера (например "40х20хK" при запросе "40х25хK").
+    // Вторую сторону приходится доставать из названия (в сырых данных
+    // отдельного структурного поля под неё нет), она идёт ВТОРЫМ числом.
+    const втораяСторонаЗапроса = position.параметры?.длина_листа;
+    if (втораяСторонаЗапроса == null) return true; // круглая труба или квадратная — второй стороны нет вовсе
+
+    const перваяСтрокаНазвания = String(r.название || '').split('\n')[0];
+    const числаНазвания = перваяСтрокаНазвания.match(/[\d.,]+/g);
+    if (!числаНазвания || числаНазвания.length < 3) return false; // не прямоугольная строка — нечего сравнивать
+    const втораяСторонаСтроки = числаНазвания[1].replace(',', '.');
+    return втораяСторонаСтроки === String(втораяСторонаЗапроса).trim();
+  });
+
+  if (совпаденияПоРазмеру.length === 0) return null; // размера вообще нет — тут неопределённость выше, пусть AI попробует переформулировать
+
+  // ВАЖНО: стенку берём из НАЗВАНИЯ, а не из поля "марка" — у поля
+  // "марка" разный смысл в разных категориях труб (у круглых — реально
+  // стенка, у профильных — вторая сторона Б, не стенка вообще). А вот
+  // последнее число в первой строке названия ("...NхMхK") — это всегда
+  // стенка, что для круглой ("60х1.5"), что для профильной ("40х20х0.8") трубы.
+  const стенки = new Set();
+  for (const r of совпаденияПоРазмеру) {
+    const перваяСтрока = String(r.название || '').split('\n')[0];
+    const числа = перваяСтрока.match(/[\d.,]+/g);
+    if (!числа || числа.length < 2) continue;
+    const последнее = числа[числа.length - 1].replace(',', '.');
+    if (/^\d+(\.\d+)?$/.test(последнее)) стенки.add(последнее);
+  }
+
+  if (стенки.size === 0) return null;
+  return [...стенки].sort((a, b) => parseFloat(a) - parseFloat(b));
+}
+
 async function findPosition(position, onProgress) {
   let result = await searchPosition(position.поисковый_запрос, position);
   let lastRawRows = result.rawRows || [];
   if (result.found) return { result, usedQuery: position.поисковый_запрос, rawRows: lastRawRows };
 
+  // Короткое замыкание: если размер/ширина/диаметр УЖЕ найдены на
+  // странице категории, но именно стенка не совпала — переформулировка
+  // запроса ничего не даст (это та же самая база данных сайта, только
+  // спрошенная иначе). Вместо 3-4 循环 AI-переформулировок (каждая — это
+  // ещё один проход по URL-категории + глобальному поиску, десятки
+  // секунд впустую) сразу возвращаем "не найдено" вместе со списком
+  // РЕАЛЬНО доступных стенок — это и быстрее, и полезнее менеджеру.
+  const доступныеСтенки = доступныеСтенкиПриТомЖеРазмере(position, lastRawRows);
+  if (доступныеСтенки) {
+    await onProgress(
+      `❌ Не нашёл стенку ${position.параметры.стенка} — в наличии у этого размера есть: ${доступныеСтенки.join(', ')}`
+    );
+    return {
+      result: { found: false },
+      usedQuery: null,
+      needsHelp: false,
+      rawRows: lastRawRows,
+      доступныеСтенки,
+    };
+  }
+
   await onProgress(
     `⚠️ Не нашёл по запросу "${position.поисковый_запрос}". Пробую альтернативы...`
   );
+
+  // Если у позиции уже есть структурный размер (диаметр/ширина/номер) —
+  // просим только ОДНУ альтернативу вместо трёх. Сайт ищет по цифрам,
+  // а не по формулировке — "труба квадратная 32х3.2" и "профильная
+  // 32х32х3.2" для текстового поиска почти эквивалентны, три круга
+  // переформулировок тут почти никогда не помогают, только тратят
+  // время (десятки секунд на честно отсутствующую позицию). Там, где
+  // структурных параметров нет вообще — формулировка действительно
+  // может решить, оставляем три попытки как раньше.
+  const естьСтруктурныйРазмер =
+    position.параметры?.диаметр != null ||
+    position.параметры?.ширина != null ||
+    position.параметры?.номер != null;
+  const нужноАльтернатив = естьСтруктурныйРазмер ? 1 : 3;
 
   const alternativesRaw = await askAI(`
 Запрос "${position.поисковый_запрос}" не нашёл результатов на сайте металлопроката mc.ru.
 Позиция: ${position.название}
 
-Предложи 3 альтернативных коротких поисковых запроса для поиска на сайте.
+Предложи ${нужноАльтернатив} альтернативных коротких поисковых запроса для поиска на сайте.
 Верни ТОЛЬКО JSON массив строк без markdown.
 Пример: ["трубы х/д", "труба холоднодеформированная", "х/д"]
 `);
@@ -64,22 +151,11 @@ async function findPosition(position, onProgress) {
   return { result: { found: false }, usedQuery: null, needsHelp: true, rawRows: lastRawRows };
 }
 
-/**
- * Проверяет, что у варианта чётко определена длина (например "6000"),
- * а не "н/д", диапазон вроде "1000-6000" или что-то ещё неопределённое.
- */
 function имеетОпределённуюДлину(v) {
   const длина = String(v.длина || '').trim()
   return /^\d+$/.test(длина)
 }
 
-/**
- * Выбирает лучший вариант из найденных — БЕЗ учёта базы, только по цене.
- * Используется как резервный вариант, если по какой-то причине подбор
- * базы не дал варианта для конкретной позиции (не должно случаться при
- * нормальной работе baseOptimizer, но на всякий случай не роняем заказ).
- * Приоритет: ГОСТ > ТУ, чёткая длина > "н/д", минимальная цена внутри группы.
- */
 function selectBestVariant(variants) {
   const гостВарианты = variants.filter(v =>
     v.название.toLowerCase().includes('гост')
@@ -97,12 +173,6 @@ function selectBestVariant(variants) {
   )
 }
 
-/**
- * Фаза 1 — поиск всех позиций. Ничего не добавляет в корзину, только
- * ищет и фильтрует. Отдельная функция, потому что после поиска нужно
- * подобрать базу (см. baseOptimizer) и, возможно, спросить менеджера —
- * а уже потом (в finalizeOrder) заполнять корзину.
- */
 async function searchPositions(positions, onProgress, onNeedHelp, order) {
   await authorize();
 
@@ -125,11 +195,8 @@ async function searchPositions(positions, onProgress, onNeedHelp, order) {
     };
 
     try {
-      const { result, usedQuery, needsHelp, rawRows } = await findPosition(position, onProgress);
+      const { result, usedQuery, needsHelp, rawRows, доступныеСтенки } = await findPosition(position, onProgress);
 
-      // Таблица решения — строится ВСЕГДА, когда есть с чем сравнивать
-      // (даже если ничего не найдено — важно видеть, что было и почему
-      // отклонено). Не роняем обработку заявки, если тут что-то пойдёт не так.
       try {
         if (rawRows && rawRows.length > 0) {
           const таблица = построитьТаблицу(position, rawRows);
@@ -147,8 +214,10 @@ async function searchPositions(positions, onProgress, onNeedHelp, order) {
         searchLog.статус = 'нужна помощь';
         await onNeedHelp(position);
       } else if (!result.found) {
+        if (доступныеСтенки) position.доступныеСтенки = доступныеСтенки;
         notFound.push(position);
         searchLog.статус = 'не найдено';
+        searchLog.доступныеСтенки = доступныеСтенки || null;
         await onProgress(`❌ Не найдено: ${position.название}`);
       } else {
         found.push({ position, variants: result.variants, usedQuery });
@@ -173,20 +242,6 @@ async function searchPositions(positions, onProgress, onNeedHelp, order) {
   return { found, notFound, needHelp };
 }
 
-/**
- * Фаза 2-5 — очищает корзину и заполняет её. Принимает УЖЕ подобранные
- * варианты (по одному на позицию, привязанные к выбранной базе/базам —
- * см. baseOptimizer.подбериБазу). Если для какой-то позиции вариант не
- * передан (не должно случаться, но на всякий случай) — берёт резервный
- * через selectBestVariant.
- *
- * @param {Array<{position, variants}>} found - результат searchPositions
- * @param {Map<string, object>} вариантПоПозиции - название позиции → выбранный вариант
- * @param {object[]} notFound
- * @param {object[]} needHelp
- * @param {Function} onProgress
- * @param {object} order
- */
 async function finalizeOrder(found, вариантПоПозиции, notFound, needHelp, onProgress, order) {
   const startTime = Date.now();
 
@@ -236,12 +291,10 @@ async function finalizeOrder(found, вариантПоПозиции, notFound, 
   const bases = [...new Set(selection.map(s => s.variant.смц))];
   await onProgress(`💰 Базы: ${bases.join(', ')}`);
 
-  // Фаза 3 — очищаем корзину
   await onProgress('🧹 Очищаю корзину...');
   const page = await getPage();
   await clearCart(page);
 
-  // Фаза 4 — добавляем в корзину
   await onProgress('🛒 Добавляю позиции в корзину...');
   const успешноДобавлено = [];
 
@@ -315,8 +368,6 @@ async function finalizeOrder(found, вариантПоПозиции, notFound, 
   return { cartScreenshot, selection: успешноДобавлено, notFound, needHelp, bases, order };
 }
 
-// Строит Map<название, вариант> из рекомендации baseOptimizer — удобный
-// формат для передачи в finalizeOrder
 function вариантПоПозицииИзРекомендации(baseRecommendation) {
   const карта = new Map();
   for (const p of baseRecommendation.позиции) {
@@ -325,18 +376,6 @@ function вариантПоПозицииИзРекомендации(baseRecomm
   return карта;
 }
 
-/**
- * Главная точка входа — как и раньше, но теперь может вернуться ДВУМЯ
- * разными способами:
- *  1. Обычный результат (как раньше) — если база подобралась без
- *     необходимости спрашивать менеджера (единая ПРИОРИТЕТНАЯ база на
- *     все позиции).
- *  2. { needsBaseConfirmation: true, found, notFound, needHelp,
- *       baseRecommendation, order } — если нужно подтверждение. Корзина
- *     в этом случае ЕЩЁ НЕ заполняется. Вызывающий код (handlers/message.js)
- *     должен спросить менеджера и потом вызвать finalizeOrder напрямую
- *     (см. handlers/callback.js) с итоговой картой вариантов.
- */
 async function processOrder(positions, onProgress, onNeedHelp, order) {
   const { found, notFound, needHelp } = await searchPositions(positions, onProgress, onNeedHelp, order);
 
@@ -357,9 +396,6 @@ async function processOrder(positions, onProgress, onNeedHelp, order) {
     return finalizeOrder(found, вариантПоПозиции, notFound, needHelp, onProgress, order);
   }
 
-  // Нужно подтверждение менеджера — НЕ заполняем корзину, отдаём всё
-  // необходимое наверх, чтобы handlers/message.js мог спросить и
-  // дождаться ответа через callback (см. handlers/callback.js)
   return {
     needsBaseConfirmation: true,
     found,
