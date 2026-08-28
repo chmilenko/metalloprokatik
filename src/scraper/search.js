@@ -802,10 +802,33 @@ async function searchByUrl(url, position, page) {
 
         const baseRows = await newPage.$$('table#tab_main1 tbody tr');
         if (baseRows.length > 0) {
+          // ВАЖНО: на одной карточке товара может быть НЕСКОЛЬКО разных
+          // ценовых предложений одного и того же названия (например
+          // собственная прокатка и продукция стороннего комбината под
+          // тем же наименованием — так объяснил менеджер mc.ru про
+          // "Лист х/к 1х1250х2500" с ценами 65990 и 67990 одновременно).
+          // Если брать ВСЕ строки таблицы без разбора — оба сканированных
+          // варианта (65990 и 67990) получат ОДИНАКОВЫЙ полный список
+          // баз, хотя по факту у каждой цены свой, частично отличающийся
+          // набор баз. Фильтруем строки по цене ИМЕННО этого варианта.
+          const целеваяЦенаСтрока = String(variant.цена_от_1т).replace(/\s/g, '');
           for (const row of baseRows) {
             const baseName = await row.getAttribute('data-base');
-            if (baseName) {
+            if (!baseName) continue;
+            const rowText = (await row.innerText()).replace(/\s/g, '');
+            if (rowText.includes(целеваяЦенаСтрока)) {
               allBases.push(baseName);
+            }
+          }
+          // Если после фильтрации по цене ничего не осталось (например
+          // формат цены на карточке отличается от страницы категории, и
+          // подстрока не совпала) — не остаёмся с пустым списком, лучше
+          // взять ВСЕ строки как раньше (избыточный список баз лучше,
+          // чем полное отсутствие информации).
+          if (allBases.length === 0) {
+            for (const row of baseRows) {
+              const baseName = await row.getAttribute('data-base');
+              if (baseName) allBases.push(baseName);
             }
           }
         }
