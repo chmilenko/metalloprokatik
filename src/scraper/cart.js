@@ -62,6 +62,20 @@ async function addToCart(variant, quantity, unit = "т") {
   });
   await delay(500);
 
+  // ФИКС: если менеджер выбрал базу — добавляем ТОЛЬКО через карточку с
+  // явным выбором этой базы. Добавление из строки таблицы базу не
+  // гарантирует: труба, добавленная из строки «Очаково», в корзине
+  // оказалась на другой базе («Подольск») и после выбора базы Балашиха
+  // стала неактивной; та же труба, добавленная через карточку с выбором
+  // Балашихи, была в порядке (проверено вручную на сайте).
+  if (целеваяБаза) {
+    logger.info("Задана база — добавляем через карточку с явным выбором базы", {
+      название: variant.название,
+      целеваяБаза,
+    });
+    return await добавитьЧерезКарточку(page, variant, quantity, unit);
+  }
+
   const rows = await page.$$("table tbody tr");
   let targetRow = null;
   let смцТаблицы = null;
@@ -85,7 +99,16 @@ async function addToCart(variant, quantity, unit = "т") {
       );
 
     const маркаСовпадает = !variant.марка || марка === variant.марка;
-    if (название === variant.название && маркаСовпадает) {
+    // ФИКС: сверяем и длину (4-я колонка таблицы, как в search.js). Раньше
+    // выбиралась ПЕРВАЯ строка с тем же названием и маркой — например
+    // «Швеллер 12 П С255 12000» вместо нужной «С255 6000», хотя это разные
+    // товары с разными базами и ценой.
+    const длинаСтроки = await row
+      .$eval("td:nth-child(4)", (el) => el.innerText.trim())
+      .catch(() => "");
+    const длинаСовпадает =
+      !variant.длина || !длинаСтроки || длинаСтроки === String(variant.длина).trim();
+    if (название === variant.название && маркаСовпадает && длинаСовпадает) {
       // Если в СМЦ несколько баз через запятую — проваливаемся в карточку
       if (смц && смц.includes(',')) {
         logger.info("В таблице несколько баз, проваливаемся в карточку", { смц });
@@ -181,6 +204,14 @@ async function addToCart(variant, quantity, unit = "т") {
 
   await ввестиКоличество(iframe, quantity, unit);
 
+  const инфоСообщение = await прочитатьИнформацию(iframe);
+  if (инфоСообщение) {
+    logger.info("Информационное сообщение сайта (не блокирует)", {
+      название: variant.название,
+      сообщение: инфоСообщение,
+    });
+  }
+
   const errorMessage = await проверитьОшибки(iframe);
   const этоКорректировкаКоличества = errorMessage &&
     /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
@@ -213,6 +244,7 @@ async function addToCart(variant, quantity, unit = "т") {
   return {
     adjusted: !!этоКорректировкаКоличества,
     adjustmentMessage: этоКорректировкаКоличества ? errorMessage : null,
+    infoMessage: инфоСообщение || null,
   };
 }
 
@@ -244,7 +276,12 @@ async function добавитьЧерезКарточку(page, variant, quantit
       .catch(() => "");
 
     const маркаСовпадает = !variant.марка || марка === variant.марка;
-    if (название === variant.название && маркаСовпадает) {
+    const длинаСтроки = await row
+      .$eval("td:nth-child(4)", (el) => el.innerText.trim())
+      .catch(() => "");
+    const длинаСовпадает =
+      !variant.длина || !длинаСтроки || длинаСтроки === String(variant.длина).trim();
+    if (название === variant.название && маркаСовпадает && длинаСовпадает) {
       targetRow = row;
       break;
     }
@@ -275,9 +312,11 @@ async function добавитьЧерезКарточку(page, variant, quantit
   // ============================================================
 
   const целеваяБаза = variant.recommendedBase || null;
+  let базаНеВыбрана = false;
   if (целеваяБаза) {
     // Просто выбираем базу из списка или таблицы
-    await выбратьБазуНаКарточке(page, целеваяБаза);
+    const выбрана = await выбратьБазуНаКарточке(page, целеваяБаза);
+    базаНеВыбрана = !выбрана;
     await delay(500);
   }
 
@@ -333,31 +372,39 @@ async function добавитьЧерезКарточку(page, variant, quantit
     await page.waitForSelector("#addbasket", { state: "visible", timeout: 5000 });
   } catch (e) {
     logger.info("Модалка не появилась, возможно товар уже в корзине");
-    return { adjusted: false, adjustmentMessage: null };
+    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
   }
   await delay(500);
 
   const iframeElement = await page.$("#addbasket");
   if (!iframeElement) {
     logger.warn("Не нашли iframe #addbasket");
-    return { adjusted: false, adjustmentMessage: null };
+    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
   }
 
   const iframe = await iframeElement.contentFrame();
   if (!iframe) {
     logger.warn("Не удалось получить contentFrame");
-    return { adjusted: false, adjustmentMessage: null };
+    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
   }
 
   try {
     await iframe.waitForSelector("#tonns", { state: "visible", timeout: 5000 });
   } catch (e) {
     logger.warn("Не нашли #tonns в iframe");
-    return { adjusted: false, adjustmentMessage: null };
+    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
   }
   await delay(500);
 
   await ввестиКоличество(iframe, quantity, unit);
+
+  const инфоСообщение = await прочитатьИнформацию(iframe);
+  if (инфоСообщение) {
+    logger.info("Информационное сообщение сайта (не блокирует)", {
+      название: variant.название,
+      сообщение: инфоСообщение,
+    });
+  }
 
   const errorMessage = await проверитьОшибки(iframe);
   const этоКорректировкаКоличества = errorMessage &&
@@ -391,6 +438,8 @@ async function добавитьЧерезКарточку(page, variant, quantit
   return {
     adjusted: !!этоКорректировкаКоличества,
     adjustmentMessage: этоКорректировкаКоличества ? errorMessage : null,
+    infoMessage: инфоСообщение || null,
+    baseNotSelected: базаНеВыбрана,
   };
 }
 
@@ -419,12 +468,41 @@ async function ввестиКоличество(iframe, quantity, unit) {
   await delay(1500);
 }
 
+/**
+ * Информационные сообщения модалки (не ошибки): p.infometers,
+ * span.inputinfo и фразы про погрешность из p.error. Возвращает текст
+ * или null. Добавление в корзину они не останавливают — только
+ * показываются менеджеру.
+ */
+async function прочитатьИнформацию(iframe) {
+  return await iframe
+    .evaluate(() => {
+      const чисто = (el) => (el.innerText || "").replace(/\s+/g, " ").trim();
+      const тексты = [
+        ...document.querySelectorAll("p.infometers, span.inputinfo"),
+        ...[...document.querySelectorAll("p.error")].filter((el) => /погрешност/i.test(чисто(el))),
+      ]
+        .map(чисто)
+        .filter(Boolean);
+      return тексты.length > 0 ? [...new Set(тексты)].join(" ") : null;
+    })
+    .catch(() => null);
+}
+
 async function проверитьОшибки(iframe) {
   return await iframe
     .evaluate(() => {
-      const specific = document.querySelector("p.error");
-      if (specific && specific.innerText.trim()) {
-        return specific.innerText.trim();
+      // Ошибки/ограничения mc.ru — в <p class="error"> (например «Максимальный
+      // объём заказа: 20 т. Количество уменьшено до 20 т»). Информационные
+      // строки («* Количество метров указано с погрешностью согласно
+      // ГОСТу», блоки p.infometers / span.inputinfo) ошибкой НЕ считаются —
+      // их читает прочитатьИнформацию и они не останавливают добавление.
+      const этоИнформация = (t) => /погрешност/i.test(t);
+      const ошибки = [...document.querySelectorAll("p.error")]
+        .map((el) => (el.innerText || "").replace(/\s+/g, " ").trim())
+        .filter((t) => t && !этоИнформация(t));
+      if (ошибки.length > 0) {
+        return [...new Set(ошибки)].join(" ");
       }
       const bodyText = document.body.innerText || "";
       const patterns = [
@@ -517,6 +595,8 @@ async function выбратьБазуНаКарточке(page, целеваяБ
   if (!baseFound) {
     logger.warn("Не найдена база в карточке", { целеваяБаза });
   }
+
+  return baseFound;
 }
 
 module.exports = { addToCart };

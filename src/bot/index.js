@@ -15,17 +15,72 @@ const { isAllowed } = require("../utils/auth");
 const { saveFeedback, getFeedback } = require("../utils/feedback");
 const { getOrder, getRecentOrders } = require("../utils/orderLogger");
 const { sendAlert } = require("../utils/alerts");
+const ktzCode = require("../utils/ktzCode");
 const { handleBasesCommand } = require('./handlers/basePriority');
 const { handleCollectCommand } = require('./handlers/collect');
 const { handleDecisionCommand } = require('./handlers/decision');
 const { экспортироватьЗаявку } = require('../scraper/exportToExcel');
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const { handleCalcCommand } = require('./handlers/calc');
+const { handleOrderCommand, handleOrderCallback } = require('./handlers/order');
+const { handleDiposCommand } = require('./handlers/dipos');
+const { запуститьЕжедневноеОбновление: запуститьОбновлениеДипоса } = require('../scraper-dipos/download');
+// handlerTimeout: по умолчанию Telegraf обрывает обработчик через 90 секунд и
+// пишет "Promise timed out" — а заявка на 7+ позиций (поиск на mc.ru и КТЗ,
+// потом сбор корзин) идёт заметно дольше. Работа при этом не прерывалась,
+// но в логах и у админа появлялись ложные ошибки. Ставим 15 минут.
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN, {
+  handlerTimeout: 15 * 60 * 1000,
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Очередь обработки + код подтверждения КТЗ
+//
+// Проблема: Telegraf (polling) не запрашивает новые сообщения, пока не
+// завершатся обработчики текущей пачки. Пока /order ждёт код КТЗ, сообщение
+// админа с этим кодом даже не доходило бы до бота — взаимная блокировка.
+//
+// Решение: каждое обновление ставим в ОДНУ общую очередь (обработка по
+// одному, как и раньше — браузер у бота общий, параллельно с ним работать
+// нельзя), а polling освобождаем сразу. Исключение — сообщение админа с
+// кодом, пока бот его ждёт: оно обрабатывается мимо очереди.
+// ──────────────────────────────────────────────────────────────────────
+const ADMIN_ID = process.env.ADMIN_TELEGRAM_ID;
+
+if (ADMIN_ID) {
+  ktzCode.настроитьОтправителя((текст) => bot.telegram.sendMessage(ADMIN_ID, текст));
+} else {
+  logger.warn("ADMIN_TELEGRAM_ID не задан — код подтверждения КТЗ нельзя будет запросить через Telegram");
+}
+
+let очередьОбновлений = Promise.resolve();
+
+bot.use(async (ctx, next) => {
+  const текст = ctx.message?.text;
+  if (текст && ADMIN_ID && String(ctx.from?.id) === String(ADMIN_ID) && ktzCode.ждётКод()) {
+    if (ktzCode.передатьКод(текст)) {
+      await ctx.reply("✅ Код принят, ввожу его на КТЗ…").catch(() => {});
+      return;
+    }
+  }
+
+  очередьОбновлений = очередьОбновлений
+    .then(() => next())
+    .catch((err) => bot.handleError(err, ctx));
+});
 
 bot.command('bases', handleBasesCommand);
 
 bot.command('decision', handleDecisionCommand);
 
 bot.command('collect', handleCollectCommand);
+
+bot.command('calc', handleCalcCommand);
+
+bot.command('order', handleOrderCommand);
+
+bot.command('dipos', handleDiposCommand);
+
+bot.action(/^o\|/, handleOrderCallback);
 
 // Команда /export — экспорт заявки в Excel
 bot.command('export', async (ctx) => {
@@ -107,7 +162,8 @@ bot.command("start", async (ctx) => {
       "Труба ВГП ДУ15 стенка 2 одна тонна\n" +
       "Арматура А500С диаметр 12 две тонны\n\n" +
       "Команды:\n" +
-      "/order — последние заявки\n" +
+      "/order — оформить заказ по последней заявке (склады выбираешь кнопками)\n" +
+      "/dipos — прайс Дипоса (для сравнения цен): состояние и обновление\n" +
       "/feedback [текст] — сообщить об ошибке\n" +
       "/skip — пропустить ненайденную позицию"
   );
@@ -292,9 +348,35 @@ bot.catch(async (err, ctx) => {
   }
 });
 
-// Запуск
-bot.launch();
+// Запуск. Если запуск не удался (неверный токен, 409 — тот же токен уже
+// запущен в другом месте), громко пишем в лог и выходим с кодом 1 — иначе
+// процесс висит "живым", но сообщения не получает, а менеджеры не понимают почему.
+bot.launch().catch((err) => {
+  logger.error("Не удалось запустить бота", { error: err?.message || String(err) });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  logger.error('Необработанный reject (упало бы молча без этого)', {
+    error: err?.message || String(err),
+    stack: err?.stack,
+  })
+})
+process.on('uncaughtException', (err) => {
+  logger.error('Необработанное исключение (упало бы молча без этого)', {
+    error: err.message,
+    stack: err.stack,
+  })
+  // НЕ падаем сразу — даём боту дожить хотя бы до следующего сообщения,
+  // но если браузер и правда умер, следующий getPage() пересоздаст его
+})
 logger.info("Бот запущен");
+
+// Дипос: прайс-лист скачивается каждое утро (≈9:20) — только для сравнения цен
+// в сводной таблице, заказать там нельзя (у Дипоса нет корзины).
+запуститьОбновлениеДипоса({
+  уведомить: ADMIN_ID ? (текст) => bot.telegram.sendMessage(ADMIN_ID, текст) : null,
+});
 
 // Корректное завершение при остановке
 process.once("SIGINT", () => bot.stop("SIGINT"));

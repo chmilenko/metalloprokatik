@@ -1,0 +1,4820 @@
+{
+  "version": "2.2-merged",
+  "description": "v2.1 + проверенная категория pipe_es (труба электросварная) — в v2.1 эта категория содержала систематическую ошибку ~1.6% (труба 89х3 показывала 6.463 кг/м вместо верных 6.36 кг/м по ГОСТ 10704-91, подтверждено 4+ независимыми источниками). Остальные категории — как в v2.1 (швеллер/уголок там уже исправлены и проверены отдельно).",
+  "profiles": [
+    {
+      "type": "armature",
+      "size": "4",
+      "weight_per_meter": 0.099,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "4.5",
+      "weight_per_meter": 0.125,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "5",
+      "weight_per_meter": 0.154,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "5.5",
+      "weight_per_meter": 0.187,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "6",
+      "weight_per_meter": 0.222,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "6.5",
+      "weight_per_meter": 0.261,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "7",
+      "weight_per_meter": 0.302,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "8",
+      "weight_per_meter": 0.395,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "8.5",
+      "weight_per_meter": 0.445,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "9",
+      "weight_per_meter": 0.499,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "9.5",
+      "weight_per_meter": 0.556,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "10",
+      "weight_per_meter": 0.617,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "11",
+      "weight_per_meter": 0.746,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "12",
+      "weight_per_meter": 0.888,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "13",
+      "weight_per_meter": 1.042,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "14",
+      "weight_per_meter": 1.208,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "15",
+      "weight_per_meter": 1.387,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "16",
+      "weight_per_meter": 1.578,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "17",
+      "weight_per_meter": 1.782,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "18",
+      "weight_per_meter": 1.998,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "19",
+      "weight_per_meter": 2.226,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "20",
+      "weight_per_meter": 2.466,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "21",
+      "weight_per_meter": 2.719,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "22",
+      "weight_per_meter": 2.984,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "23",
+      "weight_per_meter": 3.261,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "24",
+      "weight_per_meter": 3.551,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "25",
+      "weight_per_meter": 3.853,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "26",
+      "weight_per_meter": 4.168,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "27",
+      "weight_per_meter": 4.495,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "28",
+      "weight_per_meter": 4.834,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "29",
+      "weight_per_meter": 5.185,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "30",
+      "weight_per_meter": 5.549,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "31",
+      "weight_per_meter": 5.925,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "32",
+      "weight_per_meter": 6.313,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "33",
+      "weight_per_meter": 6.714,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "34",
+      "weight_per_meter": 7.127,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "35",
+      "weight_per_meter": 7.553,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "36",
+      "weight_per_meter": 7.991,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "37",
+      "weight_per_meter": 8.441,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "38",
+      "weight_per_meter": 8.903,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "39",
+      "weight_per_meter": 9.378,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "40",
+      "weight_per_meter": 9.865,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "41",
+      "weight_per_meter": 10.364,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "42",
+      "weight_per_meter": 10.876,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "43",
+      "weight_per_meter": 11.399,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "44",
+      "weight_per_meter": 11.936,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "45",
+      "weight_per_meter": 12.485,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "46",
+      "weight_per_meter": 13.046,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "47",
+      "weight_per_meter": 13.619,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "48",
+      "weight_per_meter": 14.205,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "49",
+      "weight_per_meter": 14.803,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "50",
+      "weight_per_meter": 15.413,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "52",
+      "weight_per_meter": 16.666,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "54",
+      "weight_per_meter": 17.975,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "56",
+      "weight_per_meter": 19.339,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "58",
+      "weight_per_meter": 20.757,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "60",
+      "weight_per_meter": 22.229,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "63",
+      "weight_per_meter": 24.47,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "65",
+      "weight_per_meter": 25.962,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "67",
+      "weight_per_meter": 27.505,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "70",
+      "weight_per_meter": 29.831,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "72",
+      "weight_per_meter": 31.552,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "75",
+      "weight_per_meter": 34.071,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "77",
+      "weight_per_meter": 35.766,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "armature",
+      "size": "80",
+      "weight_per_meter": 38.475,
+      "gost": "ГОСТ 34028-2016"
+    },
+    {
+      "type": "round",
+      "size": "5",
+      "weight_per_meter": 0.154,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "5.5",
+      "weight_per_meter": 0.187,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "6",
+      "weight_per_meter": 0.222,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "6.3",
+      "weight_per_meter": 0.245,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "6.5",
+      "weight_per_meter": 0.261,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "7",
+      "weight_per_meter": 0.302,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "8",
+      "weight_per_meter": 0.395,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "9",
+      "weight_per_meter": 0.499,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "10",
+      "weight_per_meter": 0.617,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "11",
+      "weight_per_meter": 0.746,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "12",
+      "weight_per_meter": 0.888,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "13",
+      "weight_per_meter": 1.042,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "14",
+      "weight_per_meter": 1.208,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "15",
+      "weight_per_meter": 1.387,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "16",
+      "weight_per_meter": 1.578,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "17",
+      "weight_per_meter": 1.782,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "18",
+      "weight_per_meter": 1.998,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "19",
+      "weight_per_meter": 2.226,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "20",
+      "weight_per_meter": 2.466,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "21",
+      "weight_per_meter": 2.719,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "22",
+      "weight_per_meter": 2.984,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "23",
+      "weight_per_meter": 3.261,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "24",
+      "weight_per_meter": 3.551,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "25",
+      "weight_per_meter": 3.853,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "26",
+      "weight_per_meter": 4.168,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "27",
+      "weight_per_meter": 4.495,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "28",
+      "weight_per_meter": 4.834,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "29",
+      "weight_per_meter": 5.185,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "30",
+      "weight_per_meter": 5.549,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "31",
+      "weight_per_meter": 5.925,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "32",
+      "weight_per_meter": 6.313,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "33",
+      "weight_per_meter": 6.714,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "34",
+      "weight_per_meter": 7.127,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "35",
+      "weight_per_meter": 7.553,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "36",
+      "weight_per_meter": 7.991,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "37",
+      "weight_per_meter": 8.441,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "38",
+      "weight_per_meter": 8.903,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "39",
+      "weight_per_meter": 9.378,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "40",
+      "weight_per_meter": 9.865,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "41",
+      "weight_per_meter": 10.364,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "42",
+      "weight_per_meter": 10.876,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "43",
+      "weight_per_meter": 11.399,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "44",
+      "weight_per_meter": 11.936,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "45",
+      "weight_per_meter": 12.485,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "46",
+      "weight_per_meter": 13.046,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "47",
+      "weight_per_meter": 13.619,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "48",
+      "weight_per_meter": 14.205,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "49",
+      "weight_per_meter": 14.803,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "50",
+      "weight_per_meter": 15.413,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "51",
+      "weight_per_meter": 16.036,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "52",
+      "weight_per_meter": 16.666,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "53",
+      "weight_per_meter": 17.311,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "54",
+      "weight_per_meter": 17.975,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "55",
+      "weight_per_meter": 18.65,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "56",
+      "weight_per_meter": 19.339,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "57",
+      "weight_per_meter": 20.042,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "58",
+      "weight_per_meter": 20.757,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "59",
+      "weight_per_meter": 21.485,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "60",
+      "weight_per_meter": 22.229,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "61",
+      "weight_per_meter": 22.986,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "62",
+      "weight_per_meter": 23.757,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "63",
+      "weight_per_meter": 24.47,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "65",
+      "weight_per_meter": 25.962,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "67",
+      "weight_per_meter": 27.505,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "70",
+      "weight_per_meter": 29.831,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "75",
+      "weight_per_meter": 34.071,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "80",
+      "weight_per_meter": 38.475,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "85",
+      "weight_per_meter": 43.126,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "90",
+      "weight_per_meter": 48.339,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "95",
+      "weight_per_meter": 53.914,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "100",
+      "weight_per_meter": 59.848,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "105",
+      "weight_per_meter": 66.143,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "110",
+      "weight_per_meter": 72.799,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "115",
+      "weight_per_meter": 79.816,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "120",
+      "weight_per_meter": 87.095,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "125",
+      "weight_per_meter": 94.634,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "130",
+      "weight_per_meter": 102.416,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "135",
+      "weight_per_meter": 110.429,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "140",
+      "weight_per_meter": 118.653,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "145",
+      "weight_per_meter": 127.078,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "150",
+      "weight_per_meter": 135.714,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "160",
+      "weight_per_meter": 153.591,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "170",
+      "weight_per_meter": 172.273,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "180",
+      "weight_per_meter": 191.76,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "190",
+      "weight_per_meter": 212.051,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "round",
+      "size": "200",
+      "weight_per_meter": 233.148,
+      "gost": "ГОСТ 2590-2006"
+    },
+    {
+      "type": "square",
+      "size": "6",
+      "weight_per_meter": 0.283,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "7",
+      "weight_per_meter": 0.385,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "8",
+      "weight_per_meter": 0.502,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "9",
+      "weight_per_meter": 0.636,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "10",
+      "weight_per_meter": 0.785,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "11",
+      "weight_per_meter": 0.95,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "12",
+      "weight_per_meter": 1.13,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "13",
+      "weight_per_meter": 1.33,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "14",
+      "weight_per_meter": 1.539,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "15",
+      "weight_per_meter": 1.767,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "16",
+      "weight_per_meter": 2.01,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "17",
+      "weight_per_meter": 2.269,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "18",
+      "weight_per_meter": 2.543,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "19",
+      "weight_per_meter": 2.835,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "20",
+      "weight_per_meter": 3.14,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "21",
+      "weight_per_meter": 3.462,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "22",
+      "weight_per_meter": 3.799,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "23",
+      "weight_per_meter": 4.153,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "24",
+      "weight_per_meter": 4.522,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "25",
+      "weight_per_meter": 4.906,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "26",
+      "weight_per_meter": 5.307,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "27",
+      "weight_per_meter": 5.723,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "28",
+      "weight_per_meter": 6.154,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "29",
+      "weight_per_meter": 6.602,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "30",
+      "weight_per_meter": 7.065,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "31",
+      "weight_per_meter": 7.544,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "32",
+      "weight_per_meter": 8.038,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "34",
+      "weight_per_meter": 9.074,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "36",
+      "weight_per_meter": 10.173,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "38",
+      "weight_per_meter": 11.335,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "40",
+      "weight_per_meter": 12.56,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "42",
+      "weight_per_meter": 13.847,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "45",
+      "weight_per_meter": 15.896,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "50",
+      "weight_per_meter": 19.625,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "55",
+      "weight_per_meter": 23.746,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "60",
+      "weight_per_meter": 28.26,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "65",
+      "weight_per_meter": 33.163,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "70",
+      "weight_per_meter": 38.465,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "75",
+      "weight_per_meter": 44.156,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "80",
+      "weight_per_meter": 50.24,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "85",
+      "weight_per_meter": 56.716,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "90",
+      "weight_per_meter": 63.585,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "95",
+      "weight_per_meter": 70.846,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "square",
+      "size": "100",
+      "weight_per_meter": 78.5,
+      "gost": "ГОСТ 2591-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "8",
+      "weight_per_meter": 0.435,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "9",
+      "weight_per_meter": 0.551,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "10",
+      "weight_per_meter": 0.68,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "11",
+      "weight_per_meter": 0.823,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "12",
+      "weight_per_meter": 0.979,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "13",
+      "weight_per_meter": 1.149,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "14",
+      "weight_per_meter": 1.333,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "15",
+      "weight_per_meter": 1.53,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "16",
+      "weight_per_meter": 1.742,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "17",
+      "weight_per_meter": 1.967,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "18",
+      "weight_per_meter": 2.206,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "19",
+      "weight_per_meter": 2.458,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "20",
+      "weight_per_meter": 2.725,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "21",
+      "weight_per_meter": 3.005,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "22",
+      "weight_per_meter": 3.298,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "23",
+      "weight_per_meter": 3.605,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "24",
+      "weight_per_meter": 3.927,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "25",
+      "weight_per_meter": 4.262,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "26",
+      "weight_per_meter": 4.61,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "27",
+      "weight_per_meter": 4.973,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "28",
+      "weight_per_meter": 5.349,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "29",
+      "weight_per_meter": 5.739,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "30",
+      "weight_per_meter": 6.143,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "32",
+      "weight_per_meter": 6.991,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "34",
+      "weight_per_meter": 7.893,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "36",
+      "weight_per_meter": 8.866,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "38",
+      "weight_per_meter": 9.887,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "40",
+      "weight_per_meter": 10.98,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "41",
+      "weight_per_meter": 11.548,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "42",
+      "weight_per_meter": 12.132,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "43",
+      "weight_per_meter": 12.731,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "44",
+      "weight_per_meter": 13.347,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "46",
+      "weight_per_meter": 14.627,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "48",
+      "weight_per_meter": 15.936,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "50",
+      "weight_per_meter": 17.3,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "52",
+      "weight_per_meter": 18.728,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "54",
+      "weight_per_meter": 20.216,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "55",
+      "weight_per_meter": 20.98,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "56",
+      "weight_per_meter": 21.75,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "58",
+      "weight_per_meter": 23.2,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "hexagon",
+      "size": "60",
+      "weight_per_meter": 24.5,
+      "gost": "ГОСТ 2859-2006"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "15x2.8",
+      "weight_per_meter": 1.28,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "15x3.0",
+      "weight_per_meter": 1.28,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "15x3.2",
+      "weight_per_meter": 1.43,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "20x2.5",
+      "weight_per_meter": 1.12,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "20x2.8",
+      "weight_per_meter": 1.31,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "20x3.0",
+      "weight_per_meter": 1.31,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "20x3.2",
+      "weight_per_meter": 1.46,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "20x3.5",
+      "weight_per_meter": 1.63,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "20x4.0",
+      "weight_per_meter": 1.97,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "25x2.8",
+      "weight_per_meter": 1.64,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "25x3.0",
+      "weight_per_meter": 1.63,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "25x3.2",
+      "weight_per_meter": 1.81,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "25x3.5",
+      "weight_per_meter": 1.98,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "25x4.0",
+      "weight_per_meter": 2.35,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "25x4.5",
+      "weight_per_meter": 2.74,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x2.8",
+      "weight_per_meter": 2.16,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x3.0",
+      "weight_per_meter": 2.12,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x3.2",
+      "weight_per_meter": 2.36,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x3.5",
+      "weight_per_meter": 2.53,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x4.0",
+      "weight_per_meter": 2.93,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x4.5",
+      "weight_per_meter": 3.31,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "32x5.0",
+      "weight_per_meter": 3.7,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "40x3.0",
+      "weight_per_meter": 2.59,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "40x3.5",
+      "weight_per_meter": 2.92,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "40x4.0",
+      "weight_per_meter": 3.35,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "40x4.5",
+      "weight_per_meter": 3.76,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "40x5.0",
+      "weight_per_meter": 4.15,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "50x3.0",
+      "weight_per_meter": 3.28,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "50x3.5",
+      "weight_per_meter": 3.7,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "50x4.0",
+      "weight_per_meter": 4.27,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "50x4.5",
+      "weight_per_meter": 4.81,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "50x5.0",
+      "weight_per_meter": 5.28,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "65x3.2",
+      "weight_per_meter": 4.6,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "65x4.0",
+      "weight_per_meter": 5.45,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "65x4.5",
+      "weight_per_meter": 6.04,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "80x3.5",
+      "weight_per_meter": 6.42,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "80x4.0",
+      "weight_per_meter": 7.07,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "80x4.5",
+      "weight_per_meter": 7.7,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "80x5.0",
+      "weight_per_meter": 8.36,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "80x5.5",
+      "weight_per_meter": 8.99,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "90x3.5",
+      "weight_per_meter": 7.3,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "90x4.0",
+      "weight_per_meter": 8.1,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "90x4.5",
+      "weight_per_meter": 8.84,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "100x4.0",
+      "weight_per_meter": 10.16,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "100x4.5",
+      "weight_per_meter": 11.25,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "100x5.0",
+      "weight_per_meter": 12.36,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "100x5.5",
+      "weight_per_meter": 13.44,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "125x4.0",
+      "weight_per_meter": 12.82,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "125x4.5",
+      "weight_per_meter": 14.21,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "125x5.0",
+      "weight_per_meter": 15.63,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "125x5.5",
+      "weight_per_meter": 17.02,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "150x4.0",
+      "weight_per_meter": 15.43,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "150x4.5",
+      "weight_per_meter": 17.16,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "150x5.0",
+      "weight_per_meter": 18.89,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_vgp",
+      "size": "150x5.5",
+      "weight_per_meter": 20.6,
+      "gost": "ГОСТ 3262-75"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "15x15x1.0",
+      "weight_per_meter": 0.434,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "15x15x1.2",
+      "weight_per_meter": 0.514,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "15x15x1.5",
+      "weight_per_meter": 0.629,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x10x1.0",
+      "weight_per_meter": 0.434,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x10x1.2",
+      "weight_per_meter": 0.514,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x10x1.5",
+      "weight_per_meter": 0.629,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x20x0.8",
+      "weight_per_meter": 0.472,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x20x1.0",
+      "weight_per_meter": 0.584,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x20x1.2",
+      "weight_per_meter": 0.694,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "20x20x1.5",
+      "weight_per_meter": 0.854,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "25x25x0.8",
+      "weight_per_meter": 0.596,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "25x25x1.0",
+      "weight_per_meter": 0.737,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "25x25x1.2",
+      "weight_per_meter": 0.877,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "25x25x1.5",
+      "weight_per_meter": 1.081,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "25x25x2.0",
+      "weight_per_meter": 1.419,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x20x1.0",
+      "weight_per_meter": 0.737,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x20x1.2",
+      "weight_per_meter": 0.877,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x20x1.5",
+      "weight_per_meter": 1.081,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x20x2.0",
+      "weight_per_meter": 1.419,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x30x0.8",
+      "weight_per_meter": 0.719,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x30x1.0",
+      "weight_per_meter": 0.89,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x30x1.2",
+      "weight_per_meter": 1.061,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x30x1.5",
+      "weight_per_meter": 1.31,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "30x30x2.0",
+      "weight_per_meter": 1.732,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x20x1.0",
+      "weight_per_meter": 0.889,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x20x1.2",
+      "weight_per_meter": 1.061,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x20x1.5",
+      "weight_per_meter": 1.31,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x20x2.0",
+      "weight_per_meter": 1.732,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x25x1.0",
+      "weight_per_meter": 0.967,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x25x1.2",
+      "weight_per_meter": 1.157,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x25x1.5",
+      "weight_per_meter": 1.432,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x25x2.0",
+      "weight_per_meter": 1.949,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x0.8",
+      "weight_per_meter": 0.964,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x1.0",
+      "weight_per_meter": 1.197,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x1.2",
+      "weight_per_meter": 1.43,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x1.5",
+      "weight_per_meter": 1.77,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x2.0",
+      "weight_per_meter": 2.309,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x2.5",
+      "weight_per_meter": 2.84,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "40x40x3.0",
+      "weight_per_meter": 3.363,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x25x1.0",
+      "weight_per_meter": 1.157,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x25x1.2",
+      "weight_per_meter": 1.386,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x25x1.5",
+      "weight_per_meter": 1.719,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x25x2.0",
+      "weight_per_meter": 2.309,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x50x1.0",
+      "weight_per_meter": 1.506,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x50x1.2",
+      "weight_per_meter": 1.803,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x50x1.5",
+      "weight_per_meter": 2.24,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x50x2.0",
+      "weight_per_meter": 2.949,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x50x2.5",
+      "weight_per_meter": 3.65,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "50x50x3.0",
+      "weight_per_meter": 4.343,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x30x1.0",
+      "weight_per_meter": 1.386,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x30x1.2",
+      "weight_per_meter": 1.663,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x30x1.5",
+      "weight_per_meter": 2.063,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x30x2.0",
+      "weight_per_meter": 2.789,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x40x1.0",
+      "weight_per_meter": 1.506,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x40x1.2",
+      "weight_per_meter": 1.806,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x40x1.5",
+      "weight_per_meter": 2.24,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x40x2.0",
+      "weight_per_meter": 3.029,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x60x1.0",
+      "weight_per_meter": 1.815,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x60x1.2",
+      "weight_per_meter": 2.177,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x60x1.5",
+      "weight_per_meter": 2.709,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x60x2.0",
+      "weight_per_meter": 3.569,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x60x2.5",
+      "weight_per_meter": 4.421,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "60x60x3.0",
+      "weight_per_meter": 5.266,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x40x1.5",
+      "weight_per_meter": 2.709,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x40x2.0",
+      "weight_per_meter": 3.569,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x40x2.5",
+      "weight_per_meter": 4.421,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x40x3.0",
+      "weight_per_meter": 5.266,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x60x1.5",
+      "weight_per_meter": 3.161,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x60x2.0",
+      "weight_per_meter": 4.189,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x60x2.5",
+      "weight_per_meter": 5.21,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x60x3.0",
+      "weight_per_meter": 6.224,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x80x1.5",
+      "weight_per_meter": 3.599,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x80x2.0",
+      "weight_per_meter": 4.749,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x80x2.5",
+      "weight_per_meter": 5.921,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x80x3.0",
+      "weight_per_meter": 7.085,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "80x80x4.0",
+      "weight_per_meter": 9.33,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x40x2.0",
+      "weight_per_meter": 4.189,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x40x2.5",
+      "weight_per_meter": 5.21,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x40x3.0",
+      "weight_per_meter": 6.224,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x50x2.0",
+      "weight_per_meter": 4.349,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x50x2.5",
+      "weight_per_meter": 5.402,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x50x3.0",
+      "weight_per_meter": 6.452,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x60x2.0",
+      "weight_per_meter": 4.749,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x60x2.5",
+      "weight_per_meter": 5.921,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x60x3.0",
+      "weight_per_meter": 7.085,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x100x2.0",
+      "weight_per_meter": 5.929,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x100x2.5",
+      "weight_per_meter": 7.401,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x100x3.0",
+      "weight_per_meter": 8.865,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x100x4.0",
+      "weight_per_meter": 11.733,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "100x100x5.0",
+      "weight_per_meter": 14.554,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "120x120x3.0",
+      "weight_per_meter": 10.737,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "120x120x4.0",
+      "weight_per_meter": 14.241,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "120x120x5.0",
+      "weight_per_meter": 17.69,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "150x150x3.0",
+      "weight_per_meter": 13.609,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "150x150x4.0",
+      "weight_per_meter": 18.101,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "150x150x5.0",
+      "weight_per_meter": 22.533,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "150x150x6.0",
+      "weight_per_meter": 26.901,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "200x100x3.0",
+      "weight_per_meter": 10.737,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "200x100x4.0",
+      "weight_per_meter": 14.241,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "200x100x5.0",
+      "weight_per_meter": 17.69,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "200x200x4.0",
+      "weight_per_meter": 24.281,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "200x200x5.0",
+      "weight_per_meter": 30.226,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "pipe_prof",
+      "size": "200x200x6.0",
+      "weight_per_meter": 36.116,
+      "gost": "ГОСТ 30245-2003"
+    },
+    {
+      "type": "angle",
+      "size": "20x20x3",
+      "weight_per_meter": 0.89,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "20x20x4",
+      "weight_per_meter": 1.15,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "25x25x3",
+      "weight_per_meter": 1.12,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "25x25x4",
+      "weight_per_meter": 1.46,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "28x28x3",
+      "weight_per_meter": 1.27,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "30x30x3",
+      "weight_per_meter": 1.36,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "30x30x4",
+      "weight_per_meter": 1.78,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "32x32x3",
+      "weight_per_meter": 1.46,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "32x32x4",
+      "weight_per_meter": 1.91,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "35x35x3",
+      "weight_per_meter": 1.6,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "35x35x4",
+      "weight_per_meter": 2.1,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "40x40x3",
+      "weight_per_meter": 1.85,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "40x40x4",
+      "weight_per_meter": 2.42,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "40x40x5",
+      "weight_per_meter": 2.97,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "45x45x3",
+      "weight_per_meter": 2.09,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "45x45x4",
+      "weight_per_meter": 2.73,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "45x45x5",
+      "weight_per_meter": 3.37,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "50x50x3",
+      "weight_per_meter": 2.33,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "50x50x4",
+      "weight_per_meter": 3.06,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "50x50x5",
+      "weight_per_meter": 3.77,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "56x56x4",
+      "weight_per_meter": 3.44,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "56x56x5",
+      "weight_per_meter": 4.25,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "63x63x4",
+      "weight_per_meter": 3.9,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "63x63x5",
+      "weight_per_meter": 4.81,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "63x63x6",
+      "weight_per_meter": 5.72,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "70x70x4",
+      "weight_per_meter": 4.37,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "70x70x5",
+      "weight_per_meter": 5.38,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "70x70x6",
+      "weight_per_meter": 6.39,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "70x70x7",
+      "weight_per_meter": 7.39,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "70x70x8",
+      "weight_per_meter": 8.37,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "75x75x5",
+      "weight_per_meter": 5.8,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "75x75x6",
+      "weight_per_meter": 6.89,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "75x75x7",
+      "weight_per_meter": 7.96,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "75x75x8",
+      "weight_per_meter": 9.02,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "75x75x9",
+      "weight_per_meter": 10.07,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "80x80x5",
+      "weight_per_meter": 6.2,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "80x80x6",
+      "weight_per_meter": 7.36,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "80x80x7",
+      "weight_per_meter": 8.51,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "80x80x8",
+      "weight_per_meter": 9.65,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "90x90x6",
+      "weight_per_meter": 8.33,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "90x90x7",
+      "weight_per_meter": 9.64,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "90x90x8",
+      "weight_per_meter": 10.93,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "90x90x9",
+      "weight_per_meter": 12.2,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x6",
+      "weight_per_meter": 9.27,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x7",
+      "weight_per_meter": 10.74,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x8",
+      "weight_per_meter": 12.25,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x9",
+      "weight_per_meter": 13.74,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x10",
+      "weight_per_meter": 15.12,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x12",
+      "weight_per_meter": 18.16,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "100x100x14",
+      "weight_per_meter": 21.3,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "110x110x7",
+      "weight_per_meter": 11.89,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "110x110x8",
+      "weight_per_meter": 13.5,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "125x125x8",
+      "weight_per_meter": 15.46,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "125x125x9",
+      "weight_per_meter": 17.3,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "125x125x10",
+      "weight_per_meter": 19.1,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "125x125x12",
+      "weight_per_meter": 22.68,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "125x125x14",
+      "weight_per_meter": 26.2,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "140x140x9",
+      "weight_per_meter": 19.41,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "140x140x10",
+      "weight_per_meter": 21.45,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "140x140x12",
+      "weight_per_meter": 25.5,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "160x160x10",
+      "weight_per_meter": 24.68,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "160x160x11",
+      "weight_per_meter": 27.02,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "160x160x12",
+      "weight_per_meter": 29.35,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "160x160x14",
+      "weight_per_meter": 33.97,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "160x160x16",
+      "weight_per_meter": 39.7,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "180x180x11",
+      "weight_per_meter": 30.47,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "180x180x12",
+      "weight_per_meter": 33.12,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "200x200x12",
+      "weight_per_meter": 36.97,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "200x200x14",
+      "weight_per_meter": 42.8,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "200x200x16",
+      "weight_per_meter": 48.65,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "200x200x20",
+      "weight_per_meter": 60.08,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "220x220x14",
+      "weight_per_meter": 47.4,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "220x220x16",
+      "weight_per_meter": 53.83,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x16",
+      "weight_per_meter": 61.55,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x18",
+      "weight_per_meter": 68.86,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x20",
+      "weight_per_meter": 76.11,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x22",
+      "weight_per_meter": 83.31,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x25",
+      "weight_per_meter": 93.97,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x28",
+      "weight_per_meter": 104.5,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "angle",
+      "size": "250x250x30",
+      "weight_per_meter": 111.44,
+      "gost": "ГОСТ 8509-93"
+    },
+    {
+      "type": "channel",
+      "size": "5",
+      "weight_per_meter": 4.84,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "6.5",
+      "weight_per_meter": 5.9,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "8",
+      "weight_per_meter": 7.05,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "10",
+      "weight_per_meter": 8.59,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "12",
+      "weight_per_meter": 10.42,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "14",
+      "weight_per_meter": 12.3,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "16",
+      "weight_per_meter": 14.2,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "16a",
+      "weight_per_meter": 15.77,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "18",
+      "weight_per_meter": 16.3,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "18a",
+      "weight_per_meter": 17.8,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "20",
+      "weight_per_meter": 18.4,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "20a",
+      "weight_per_meter": 19.8,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "22",
+      "weight_per_meter": 21,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "24",
+      "weight_per_meter": 24,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "24a",
+      "weight_per_meter": 25.8,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "27",
+      "weight_per_meter": 27.7,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "30",
+      "weight_per_meter": 31.8,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "33",
+      "weight_per_meter": 36.5,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "36",
+      "weight_per_meter": 41.9,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "channel",
+      "size": "40",
+      "weight_per_meter": 48.3,
+      "gost": "ГОСТ 8240-97"
+    },
+    {
+      "type": "beam",
+      "size": "10",
+      "weight_per_meter": 9.46,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "12",
+      "weight_per_meter": 11.5,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "14",
+      "weight_per_meter": 13.7,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "16",
+      "weight_per_meter": 15.9,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "18",
+      "weight_per_meter": 18.4,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "20",
+      "weight_per_meter": 21,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "22",
+      "weight_per_meter": 24,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "24",
+      "weight_per_meter": 27.3,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "27",
+      "weight_per_meter": 31.5,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "30",
+      "weight_per_meter": 36.5,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "33",
+      "weight_per_meter": 42.2,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "36",
+      "weight_per_meter": 48.6,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "40",
+      "weight_per_meter": 57,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "45",
+      "weight_per_meter": 66.5,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "50",
+      "weight_per_meter": 78.5,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "55",
+      "weight_per_meter": 92.6,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "beam",
+      "size": "60",
+      "weight_per_meter": 108,
+      "gost": "ГОСТ 8239-89"
+    },
+    {
+      "type": "strip",
+      "size": "20x3",
+      "weight_per_meter": 0.471,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "20x4",
+      "weight_per_meter": 0.628,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "20x5",
+      "weight_per_meter": 0.785,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "20x6",
+      "weight_per_meter": 0.942,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "25x3",
+      "weight_per_meter": 0.589,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "25x4",
+      "weight_per_meter": 0.785,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "25x5",
+      "weight_per_meter": 0.981,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "25x6",
+      "weight_per_meter": 1.178,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "30x3",
+      "weight_per_meter": 0.707,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "30x4",
+      "weight_per_meter": 0.942,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "30x5",
+      "weight_per_meter": 1.178,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "30x6",
+      "weight_per_meter": 1.413,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "40x3",
+      "weight_per_meter": 0.942,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "40x4",
+      "weight_per_meter": 1.256,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "40x5",
+      "weight_per_meter": 1.57,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "40x6",
+      "weight_per_meter": 1.884,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "50x3",
+      "weight_per_meter": 1.178,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "50x4",
+      "weight_per_meter": 1.57,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "50x5",
+      "weight_per_meter": 1.963,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "50x6",
+      "weight_per_meter": 2.355,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "60x3",
+      "weight_per_meter": 1.413,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "60x4",
+      "weight_per_meter": 1.884,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "60x5",
+      "weight_per_meter": 2.355,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "60x6",
+      "weight_per_meter": 2.826,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "70x3",
+      "weight_per_meter": 1.649,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "70x4",
+      "weight_per_meter": 2.198,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "70x5",
+      "weight_per_meter": 2.748,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "70x6",
+      "weight_per_meter": 3.297,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "80x3",
+      "weight_per_meter": 1.884,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "80x4",
+      "weight_per_meter": 2.512,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "80x5",
+      "weight_per_meter": 3.14,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "80x6",
+      "weight_per_meter": 3.768,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "100x3",
+      "weight_per_meter": 2.355,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "100x4",
+      "weight_per_meter": 3.14,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "100x5",
+      "weight_per_meter": 3.925,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "100x6",
+      "weight_per_meter": 4.71,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "strip",
+      "size": "100x8",
+      "weight_per_meter": 6.28,
+      "gost": "ГОСТ 103-2006"
+    },
+    {
+      "type": "sheet",
+      "size": "1x1000x2000",
+      "weight_per_meter": 15.7,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "1.2x1000x2000",
+      "weight_per_meter": 18.84,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "1.5x1000x2000",
+      "weight_per_meter": 23.55,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "1.5x1250x2500",
+      "weight_per_meter": 36.8,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "2x1000x2000",
+      "weight_per_meter": 31.4,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "2x1250x2500",
+      "weight_per_meter": 49.06,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "3x1000x2000",
+      "weight_per_meter": 47.1,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "3x1250x2500",
+      "weight_per_meter": 73.59,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "4x1500x6000",
+      "weight_per_meter": 282.6,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "5x1500x6000",
+      "weight_per_meter": 353.25,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "6x1500x6000",
+      "weight_per_meter": 423.9,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "8x1500x6000",
+      "weight_per_meter": 565.2,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "10x1500x6000",
+      "weight_per_meter": 706.5,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "sheet",
+      "size": "12x1500x6000",
+      "weight_per_meter": 847.8,
+      "gost": "ГОСТ 19903-2015"
+    },
+    {
+      "type": "pipe_es",
+      "size": "10x1.0",
+      "weight_per_meter": 0.222,
+      "gost": "10704-91",
+      "name": "Труба э/с 10x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "10x1.2",
+      "weight_per_meter": 0.26,
+      "gost": "10704-91",
+      "name": "Труба э/с 10x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "12x1.0",
+      "weight_per_meter": 0.271,
+      "gost": "10704-91",
+      "name": "Труба э/с 12x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "12x1.2",
+      "weight_per_meter": 0.32,
+      "gost": "10704-91",
+      "name": "Труба э/с 12x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "12x1.4",
+      "weight_per_meter": 0.366,
+      "gost": "10704-91",
+      "name": "Труба э/с 12x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "14x1.0",
+      "weight_per_meter": 0.321,
+      "gost": "10704-91",
+      "name": "Труба э/с 14x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "14x1.2",
+      "weight_per_meter": 0.379,
+      "gost": "10704-91",
+      "name": "Труба э/с 14x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "14x1.4",
+      "weight_per_meter": 0.435,
+      "gost": "10704-91",
+      "name": "Труба э/с 14x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "14x1.6",
+      "weight_per_meter": 0.489,
+      "gost": "10704-91",
+      "name": "Труба э/с 14x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "16x1.0",
+      "weight_per_meter": 0.37,
+      "gost": "10704-91",
+      "name": "Труба э/с 16x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "16x1.2",
+      "weight_per_meter": 0.438,
+      "gost": "10704-91",
+      "name": "Труба э/с 16x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "16x1.4",
+      "weight_per_meter": 0.504,
+      "gost": "10704-91",
+      "name": "Труба э/с 16x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "16x1.6",
+      "weight_per_meter": 0.568,
+      "gost": "10704-91",
+      "name": "Труба э/с 16x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "18x1.0",
+      "weight_per_meter": 0.419,
+      "gost": "10704-91",
+      "name": "Труба э/с 18x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "18x1.2",
+      "weight_per_meter": 0.497,
+      "gost": "10704-91",
+      "name": "Труба э/с 18x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "18x1.4",
+      "weight_per_meter": 0.573,
+      "gost": "10704-91",
+      "name": "Труба э/с 18x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "18x1.6",
+      "weight_per_meter": 0.647,
+      "gost": "10704-91",
+      "name": "Труба э/с 18x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "20x1.0",
+      "weight_per_meter": 0.469,
+      "gost": "10704-91",
+      "name": "Труба э/с 20x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "20x1.2",
+      "weight_per_meter": 0.556,
+      "gost": "10704-91",
+      "name": "Труба э/с 20x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "20x1.4",
+      "weight_per_meter": 0.642,
+      "gost": "10704-91",
+      "name": "Труба э/с 20x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "20x1.6",
+      "weight_per_meter": 0.726,
+      "gost": "10704-91",
+      "name": "Труба э/с 20x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "20x2.0",
+      "weight_per_meter": 0.888,
+      "gost": "10704-91",
+      "name": "Труба э/с 20x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "22x1.0",
+      "weight_per_meter": 0.518,
+      "gost": "10704-91",
+      "name": "Труба э/с 22x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "22x1.2",
+      "weight_per_meter": 0.616,
+      "gost": "10704-91",
+      "name": "Труба э/с 22x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "22x1.4",
+      "weight_per_meter": 0.711,
+      "gost": "10704-91",
+      "name": "Труба э/с 22x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "22x1.6",
+      "weight_per_meter": 0.805,
+      "gost": "10704-91",
+      "name": "Труба э/с 22x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "22x2.0",
+      "weight_per_meter": 0.986,
+      "gost": "10704-91",
+      "name": "Труба э/с 22x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "25x1.0",
+      "weight_per_meter": 0.592,
+      "gost": "10704-91",
+      "name": "Труба э/с 25x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "25x1.2",
+      "weight_per_meter": 0.704,
+      "gost": "10704-91",
+      "name": "Труба э/с 25x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "25x1.4",
+      "weight_per_meter": 0.815,
+      "gost": "10704-91",
+      "name": "Труба э/с 25x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "25x1.6",
+      "weight_per_meter": 0.923,
+      "gost": "10704-91",
+      "name": "Труба э/с 25x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "25x2.0",
+      "weight_per_meter": 1.134,
+      "gost": "10704-91",
+      "name": "Труба э/с 25x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "25x2.2",
+      "weight_per_meter": 1.237,
+      "gost": "10704-91",
+      "name": "Труба э/с 25x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "28x1.0",
+      "weight_per_meter": 0.666,
+      "gost": "10704-91",
+      "name": "Труба э/с 28x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "28x1.2",
+      "weight_per_meter": 0.793,
+      "gost": "10704-91",
+      "name": "Труба э/с 28x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "28x1.4",
+      "weight_per_meter": 0.918,
+      "gost": "10704-91",
+      "name": "Труба э/с 28x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "28x1.6",
+      "weight_per_meter": 1.042,
+      "gost": "10704-91",
+      "name": "Труба э/с 28x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "28x2.0",
+      "weight_per_meter": 1.282,
+      "gost": "10704-91",
+      "name": "Труба э/с 28x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "28x2.2",
+      "weight_per_meter": 1.4,
+      "gost": "10704-91",
+      "name": "Труба э/с 28x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "30x1.0",
+      "weight_per_meter": 0.715,
+      "gost": "10704-91",
+      "name": "Труба э/с 30x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "30x1.2",
+      "weight_per_meter": 0.852,
+      "gost": "10704-91",
+      "name": "Труба э/с 30x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "30x1.4",
+      "weight_per_meter": 0.987,
+      "gost": "10704-91",
+      "name": "Труба э/с 30x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "30x1.6",
+      "weight_per_meter": 1.121,
+      "gost": "10704-91",
+      "name": "Труба э/с 30x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "30x2.0",
+      "weight_per_meter": 1.381,
+      "gost": "10704-91",
+      "name": "Труба э/с 30x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "30x2.2",
+      "weight_per_meter": 1.508,
+      "gost": "10704-91",
+      "name": "Труба э/с 30x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x1.0",
+      "weight_per_meter": 0.764,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x1.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x1.2",
+      "weight_per_meter": 0.911,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x1.4",
+      "weight_per_meter": 1.056,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x1.6",
+      "weight_per_meter": 1.199,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x2.0",
+      "weight_per_meter": 1.48,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x2.2",
+      "weight_per_meter": 1.617,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "32x2.5",
+      "weight_per_meter": 1.819,
+      "gost": "10704-91",
+      "name": "Труба э/с 32x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "36x1.2",
+      "weight_per_meter": 1.03,
+      "gost": "10704-91",
+      "name": "Труба э/с 36x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "36x1.4",
+      "weight_per_meter": 1.195,
+      "gost": "10704-91",
+      "name": "Труба э/с 36x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "36x1.6",
+      "weight_per_meter": 1.357,
+      "gost": "10704-91",
+      "name": "Труба э/с 36x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "36x2.0",
+      "weight_per_meter": 1.677,
+      "gost": "10704-91",
+      "name": "Труба э/с 36x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "36x2.2",
+      "weight_per_meter": 1.834,
+      "gost": "10704-91",
+      "name": "Труба э/с 36x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "36x2.5",
+      "weight_per_meter": 2.065,
+      "gost": "10704-91",
+      "name": "Труба э/с 36x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "38x1.2",
+      "weight_per_meter": 1.089,
+      "gost": "10704-91",
+      "name": "Труба э/с 38x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "38x1.4",
+      "weight_per_meter": 1.264,
+      "gost": "10704-91",
+      "name": "Труба э/с 38x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "38x1.6",
+      "weight_per_meter": 1.436,
+      "gost": "10704-91",
+      "name": "Труба э/с 38x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "38x2.0",
+      "weight_per_meter": 1.776,
+      "gost": "10704-91",
+      "name": "Труба э/с 38x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "38x2.2",
+      "weight_per_meter": 1.942,
+      "gost": "10704-91",
+      "name": "Труба э/с 38x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "38x2.5",
+      "weight_per_meter": 2.189,
+      "gost": "10704-91",
+      "name": "Труба э/с 38x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x1.2",
+      "weight_per_meter": 1.148,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x1.4",
+      "weight_per_meter": 1.333,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x1.6",
+      "weight_per_meter": 1.515,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x2.0",
+      "weight_per_meter": 1.874,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x2.2",
+      "weight_per_meter": 2.051,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x2.5",
+      "weight_per_meter": 2.312,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "40x3.0",
+      "weight_per_meter": 2.737,
+      "gost": "10704-91",
+      "name": "Труба э/с 40x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x1.2",
+      "weight_per_meter": 1.207,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x1.4",
+      "weight_per_meter": 1.402,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x1.6",
+      "weight_per_meter": 1.594,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x2.0",
+      "weight_per_meter": 1.973,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x2.2",
+      "weight_per_meter": 2.159,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x2.5",
+      "weight_per_meter": 2.435,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "42x3.0",
+      "weight_per_meter": 2.885,
+      "gost": "10704-91",
+      "name": "Труба э/с 42x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x1.2",
+      "weight_per_meter": 1.296,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x1.4",
+      "weight_per_meter": 1.505,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x1.6",
+      "weight_per_meter": 1.712,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x2.0",
+      "weight_per_meter": 2.121,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x2.2",
+      "weight_per_meter": 2.322,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x2.5",
+      "weight_per_meter": 2.62,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x3.0",
+      "weight_per_meter": 3.107,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "45x3.5",
+      "weight_per_meter": 3.582,
+      "gost": "10704-91",
+      "name": "Труба э/с 45x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x1.2",
+      "weight_per_meter": 1.385,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x1.4",
+      "weight_per_meter": 1.609,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x1.6",
+      "weight_per_meter": 1.831,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x2.0",
+      "weight_per_meter": 2.269,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x2.2",
+      "weight_per_meter": 2.485,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x2.5",
+      "weight_per_meter": 2.805,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x3.0",
+      "weight_per_meter": 3.329,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "48x3.5",
+      "weight_per_meter": 3.841,
+      "gost": "10704-91",
+      "name": "Труба э/с 48x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x1.2",
+      "weight_per_meter": 1.444,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x1.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x1.4",
+      "weight_per_meter": 1.678,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x1.6",
+      "weight_per_meter": 1.91,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x2.0",
+      "weight_per_meter": 2.367,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x2.2",
+      "weight_per_meter": 2.593,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x2.2"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x2.5",
+      "weight_per_meter": 2.928,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x3.0",
+      "weight_per_meter": 3.477,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "50x3.5",
+      "weight_per_meter": 4.013,
+      "gost": "10704-91",
+      "name": "Труба э/с 50x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x1.4",
+      "weight_per_meter": 1.92,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x1.6",
+      "weight_per_meter": 2.186,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x2.0",
+      "weight_per_meter": 2.713,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x2.5",
+      "weight_per_meter": 3.36,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x3.0",
+      "weight_per_meter": 3.995,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x3.5",
+      "weight_per_meter": 4.618,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "57x4.0",
+      "weight_per_meter": 5.228,
+      "gost": "10704-91",
+      "name": "Труба э/с 57x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x1.4",
+      "weight_per_meter": 2.023,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x1.4"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x1.6",
+      "weight_per_meter": 2.304,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x2.0",
+      "weight_per_meter": 2.861,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x2.5",
+      "weight_per_meter": 3.545,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x3.0",
+      "weight_per_meter": 4.217,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x3.5",
+      "weight_per_meter": 4.877,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "60x4.0",
+      "weight_per_meter": 5.524,
+      "gost": "10704-91",
+      "name": "Труба э/с 60x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x1.6",
+      "weight_per_meter": 2.936,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x2.0",
+      "weight_per_meter": 3.65,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x2.5",
+      "weight_per_meter": 4.531,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x3.0",
+      "weight_per_meter": 5.401,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x3.5",
+      "weight_per_meter": 6.257,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x4.0",
+      "weight_per_meter": 7.102,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "76x4.5",
+      "weight_per_meter": 7.934,
+      "gost": "10704-91",
+      "name": "Труба э/с 76x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x1.6",
+      "weight_per_meter": 3.448,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x1.6"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x2.0",
+      "weight_per_meter": 4.291,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x2.5",
+      "weight_per_meter": 5.333,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x3.0",
+      "weight_per_meter": 6.362,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x3.5",
+      "weight_per_meter": 7.38,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x4.0",
+      "weight_per_meter": 8.384,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "89x4.5",
+      "weight_per_meter": 9.377,
+      "gost": "10704-91",
+      "name": "Труба э/с 89x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "102x2.0",
+      "weight_per_meter": 4.932,
+      "gost": "10704-91",
+      "name": "Труба э/с 102x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "102x2.5",
+      "weight_per_meter": 6.134,
+      "gost": "10704-91",
+      "name": "Труба э/с 102x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "102x3.0",
+      "weight_per_meter": 7.324,
+      "gost": "10704-91",
+      "name": "Труба э/с 102x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "102x3.5",
+      "weight_per_meter": 8.502,
+      "gost": "10704-91",
+      "name": "Труба э/с 102x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "102x4.0",
+      "weight_per_meter": 9.667,
+      "gost": "10704-91",
+      "name": "Труба э/с 102x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "102x4.5",
+      "weight_per_meter": 10.82,
+      "gost": "10704-91",
+      "name": "Труба э/с 102x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "108x2.0",
+      "weight_per_meter": 5.228,
+      "gost": "10704-91",
+      "name": "Труба э/с 108x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "108x2.5",
+      "weight_per_meter": 6.504,
+      "gost": "10704-91",
+      "name": "Труба э/с 108x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "108x3.0",
+      "weight_per_meter": 7.768,
+      "gost": "10704-91",
+      "name": "Труба э/с 108x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "108x3.5",
+      "weight_per_meter": 9.019,
+      "gost": "10704-91",
+      "name": "Труба э/с 108x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "108x4.0",
+      "weight_per_meter": 10.259,
+      "gost": "10704-91",
+      "name": "Труба э/с 108x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "108x4.5",
+      "weight_per_meter": 11.485,
+      "gost": "10704-91",
+      "name": "Труба э/с 108x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "114x2.0",
+      "weight_per_meter": 5.524,
+      "gost": "10704-91",
+      "name": "Труба э/с 114x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "114x2.5",
+      "weight_per_meter": 6.874,
+      "gost": "10704-91",
+      "name": "Труба э/с 114x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "114x3.0",
+      "weight_per_meter": 8.212,
+      "gost": "10704-91",
+      "name": "Труба э/с 114x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "114x3.5",
+      "weight_per_meter": 9.537,
+      "gost": "10704-91",
+      "name": "Труба э/с 114x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "114x4.0",
+      "weight_per_meter": 10.85,
+      "gost": "10704-91",
+      "name": "Труба э/с 114x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "114x4.5",
+      "weight_per_meter": 12.151,
+      "gost": "10704-91",
+      "name": "Труба э/с 114x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "127x2.0",
+      "weight_per_meter": 6.165,
+      "gost": "10704-91",
+      "name": "Труба э/с 127x2.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "127x2.5",
+      "weight_per_meter": 7.675,
+      "gost": "10704-91",
+      "name": "Труба э/с 127x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "127x3.0",
+      "weight_per_meter": 9.174,
+      "gost": "10704-91",
+      "name": "Труба э/с 127x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "127x3.5",
+      "weight_per_meter": 10.659,
+      "gost": "10704-91",
+      "name": "Труба э/с 127x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "127x4.0",
+      "weight_per_meter": 12.133,
+      "gost": "10704-91",
+      "name": "Труба э/с 127x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "127x4.5",
+      "weight_per_meter": 13.594,
+      "gost": "10704-91",
+      "name": "Труба э/с 127x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "133x2.5",
+      "weight_per_meter": 8.045,
+      "gost": "10704-91",
+      "name": "Труба э/с 133x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "133x3.0",
+      "weight_per_meter": 9.617,
+      "gost": "10704-91",
+      "name": "Труба э/с 133x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "133x3.5",
+      "weight_per_meter": 11.177,
+      "gost": "10704-91",
+      "name": "Труба э/с 133x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "133x4.0",
+      "weight_per_meter": 12.725,
+      "gost": "10704-91",
+      "name": "Труба э/с 133x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "133x4.5",
+      "weight_per_meter": 14.26,
+      "gost": "10704-91",
+      "name": "Труба э/с 133x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "133x5.0",
+      "weight_per_meter": 15.782,
+      "gost": "10704-91",
+      "name": "Труба э/с 133x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x2.5",
+      "weight_per_meter": 9.648,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x2.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x3.0",
+      "weight_per_meter": 11.541,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x3.5",
+      "weight_per_meter": 13.421,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x4.0",
+      "weight_per_meter": 15.289,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x4.5",
+      "weight_per_meter": 17.145,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x5.0",
+      "weight_per_meter": 18.988,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "159x6.0",
+      "weight_per_meter": 22.638,
+      "gost": "10704-91",
+      "name": "Труба э/с 159x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "168x3.0",
+      "weight_per_meter": 12.207,
+      "gost": "10704-91",
+      "name": "Труба э/с 168x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "168x3.5",
+      "weight_per_meter": 14.198,
+      "gost": "10704-91",
+      "name": "Труба э/с 168x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "168x4.0",
+      "weight_per_meter": 16.177,
+      "gost": "10704-91",
+      "name": "Труба э/с 168x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "168x4.5",
+      "weight_per_meter": 18.144,
+      "gost": "10704-91",
+      "name": "Труба э/с 168x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "168x5.0",
+      "weight_per_meter": 20.098,
+      "gost": "10704-91",
+      "name": "Труба э/с 168x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "168x6.0",
+      "weight_per_meter": 23.97,
+      "gost": "10704-91",
+      "name": "Труба э/с 168x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x3.0",
+      "weight_per_meter": 15.98,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x3.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x3.5",
+      "weight_per_meter": 18.6,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x4.0",
+      "weight_per_meter": 21.208,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x4.5",
+      "weight_per_meter": 23.803,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x5.0",
+      "weight_per_meter": 26.386,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x6.0",
+      "weight_per_meter": 31.515,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x7.0",
+      "weight_per_meter": 36.595,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x7.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "219x8.0",
+      "weight_per_meter": 41.626,
+      "gost": "10704-91",
+      "name": "Труба э/с 219x8.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x3.5",
+      "weight_per_meter": 23.261,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x3.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x4.0",
+      "weight_per_meter": 26.534,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x4.5",
+      "weight_per_meter": 29.795,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x5.0",
+      "weight_per_meter": 33.044,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x6.0",
+      "weight_per_meter": 39.505,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x7.0",
+      "weight_per_meter": 45.917,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x7.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "273x8.0",
+      "weight_per_meter": 52.279,
+      "gost": "10704-91",
+      "name": "Труба э/с 273x8.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "325x4.0",
+      "weight_per_meter": 31.663,
+      "gost": "10704-91",
+      "name": "Труба э/с 325x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "325x4.5",
+      "weight_per_meter": 35.566,
+      "gost": "10704-91",
+      "name": "Труба э/с 325x4.5"
+    },
+    {
+      "type": "pipe_es",
+      "size": "325x5.0",
+      "weight_per_meter": 39.456,
+      "gost": "10704-91",
+      "name": "Труба э/с 325x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "325x6.0",
+      "weight_per_meter": 47.199,
+      "gost": "10704-91",
+      "name": "Труба э/с 325x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "325x7.0",
+      "weight_per_meter": 54.893,
+      "gost": "10704-91",
+      "name": "Труба э/с 325x7.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "325x8.0",
+      "weight_per_meter": 62.538,
+      "gost": "10704-91",
+      "name": "Труба э/с 325x8.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "426x4.0",
+      "weight_per_meter": 41.626,
+      "gost": "10704-91",
+      "name": "Труба э/с 426x4.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "426x5.0",
+      "weight_per_meter": 51.909,
+      "gost": "10704-91",
+      "name": "Труба э/с 426x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "426x6.0",
+      "weight_per_meter": 62.143,
+      "gost": "10704-91",
+      "name": "Труба э/с 426x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "426x7.0",
+      "weight_per_meter": 72.328,
+      "gost": "10704-91",
+      "name": "Труба э/с 426x7.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "426x8.0",
+      "weight_per_meter": 82.463,
+      "gost": "10704-91",
+      "name": "Труба э/с 426x8.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "426x9.0",
+      "weight_per_meter": 92.549,
+      "gost": "10704-91",
+      "name": "Труба э/с 426x9.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "530x5.0",
+      "weight_per_meter": 64.733,
+      "gost": "10704-91",
+      "name": "Труба э/с 530x5.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "530x6.0",
+      "weight_per_meter": 77.531,
+      "gost": "10704-91",
+      "name": "Труба э/с 530x6.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "530x7.0",
+      "weight_per_meter": 90.28,
+      "gost": "10704-91",
+      "name": "Труба э/с 530x7.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "530x8.0",
+      "weight_per_meter": 102.98,
+      "gost": "10704-91",
+      "name": "Труба э/с 530x8.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "530x9.0",
+      "weight_per_meter": 115.631,
+      "gost": "10704-91",
+      "name": "Труба э/с 530x9.0"
+    },
+    {
+      "type": "pipe_es",
+      "size": "530x10.0",
+      "weight_per_meter": 128.232,
+      "gost": "10704-91",
+      "name": "Труба э/с 530x10.0"
+    }
+  ]
+}

@@ -13,8 +13,105 @@ const fs = require('fs')
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
-async function placeOrder() {
+/**
+ * Ищет в странице и во ВСЕХ её фреймах ВИДИМОЕ сообщение отказа mc.ru при
+ * выписке счёта, например: «Создание счета отменено. По некоторым позициям
+ * превышен лимит по выставленным счетам.» (реальная вёрстка:
+ * <div class="page"><p>…</p> + кнопка «Вернуться в корзину», окно лежит в
+ * iframe). Возвращает текст причины или null, если окна нет.
+ *
+ * ВАЖНО: ищем именно ВИДИМЫЙ абзац с этой фразой. Нельзя опираться на
+ * наличие кнопки data-modal-close="submitBasket" или контейнера .page —
+ * скрытая разметка модалки есть на странице корзины всегда, а .page
+ * оказывается всей страницей (первая версия так «нашла» отказ в подвале
+ * сайта и остановила заказ без причины).
+ */
+async function прочитатьОтказОформления(page) {
+  for (const frame of page.frames()) {
+    try {
+      const текст = await frame.evaluate(() => {
+        const абзац = Array.from(document.querySelectorAll('p')).find((p) =>
+          /Создание сч[её]та отменено/i.test(p.innerText || '') &&
+          p.getClientRects().length > 0 // видим на экране, не display:none
+        )
+        return абзац ? абзац.innerText.replace(/\s+/g, ' ').trim() : null
+      })
+      if (текст) return текст
+    } catch (e) {
+      // фрейм мог закрыться или перейти на другой адрес — пропускаем
+    }
+  }
+  return null
+}
+
+/**
+ * Читает чекбоксы позиций в корзине mc.ru (реальная вёрстка:
+ * <input type="checkbox" id="chk1" name="chk1" checked> внутри
+ * <div class="_nm">, название — ссылка в div._namet). После выбора базы
+ * позиции, которых нет на этой базе, становятся неактивными — и в счёт
+ * не попадают.
+ */
+async function прочитатьПозицииКорзины(page) {
+  return await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('input[type="checkbox"]'))
+      .filter((inp) => /^chk\d+$/.test(inp.id || ''))
+      .map((inp) => {
+        const блок = inp.closest('._nm')
+        const ссылка = блок ? блок.querySelector('._namet a') : null
+        return {
+          название: ссылка ? ссылка.innerText.replace(/\s+/g, ' ').trim() : inp.id,
+          включена: inp.checked && !inp.disabled,
+          checked: inp.checked,
+          disabled: inp.disabled,
+        }
+      })
+  })
+}
+
+/**
+ * Читает информационное сообщение mc.ru в корзине (реальная вёрстка:
+ * <div class="pageBasketError">На следующие товары превышен лимит по
+ * неоплаченным счетам:<br>…<br>Количество изменено на максимально
+ * допустимое.</div>). Появляется при оформлении: сайт сам уменьшает
+ * количество, и заказ может не создаться, пока менеджер не нажмёт
+ * «Оформить заказ» ещё раз. Возвращает видимый текст или null.
+ */
+async function прочитатьПредупреждениеКорзины(page) {
+  for (const frame of page.frames()) {
+    try {
+      const текст = await frame.evaluate(() => {
+        const блок = Array.from(document.querySelectorAll('.pageBasketError')).find(
+          (el) => el.getClientRects().length > 0 && (el.innerText || '').trim()
+        )
+        if (!блок) return null
+        return блок.innerText
+          .split('\n')
+          .map((строка) => строка.replace(/\s+/g, ' ').trim())
+          .filter(Boolean)
+          .join('\n')
+      })
+      if (текст) return текст
+    } catch (e) {
+      // фрейм мог закрыться — пропускаем
+    }
+  }
+  return null
+}
+
+async function placeOrder(предпочтительныеБазы = [], опции = {}) {
+  const сообщить = typeof опции.приПредупреждении === 'function' ? опции.приПредупреждении : async () => {}
   const page = await getPage()
+
+  // Проверяем/восстанавливаем сессию ПЕРЕД тем, как лезть в корзину —
+  // сама authorize() ничего не делает, если мы уже залогинены (проверяет
+  // .headerCabinet[data-auth-link]), так что это безопасная подстраховка,
+  // а не лишний шаг при каждом вызове.
+  try {
+    await authorize()
+  } catch (err) {
+    logger.error('Не удалось авторизоваться на mc.ru перед оформлением заказа', { error: err.message })
+    throw new Error(`Не удалось войти на mc.ru: ${err.message}`)
+  }
 
   // Запоминаем время ДО оформления — чтобы потом найти новый заказ
   const orderTime = new Date()
@@ -25,6 +122,18 @@ async function placeOrder() {
   await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1')
   await page.waitForLoadState('domcontentloaded')
   await delay(2000)
+
+  // ФИКС: перед оформлением убеждаемся, что в корзине ЕСТЬ позиции.
+  // Раньше при пустой корзине mc.ru создавал заказ-пустышку «не оформлен»
+  // на сумму 0, а бот потом 15 раз перезагружал список заказов впустую.
+  // Признак «в корзине есть позиции» — тот же, что использует clearCart.
+  if (!page.url().includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
+    throw new Error(`Не попали на страницу корзины mc.ru (url: ${page.url()}) — возможно, потеряна авторизация`)
+  }
+  const позицииВКорзине = await page.$('a[data-dropdown-toggle="removeHint"]')
+  if (!позицииВКорзине) {
+    throw new Error('Корзина mc.ru пуста — оформлять нечего (позиции не добавились в корзину?)')
+  }
 
   // Шаг 1 — читаем доступные базы в dropdown
   const availableBases = await page.evaluate(() => {
@@ -38,26 +147,28 @@ async function placeOrder() {
   console.log('Доступные базы в корзине:', availableBases)
 
   // Шаг 2 — если есть выбор базы, выбираем по нашему приоритету
-  // (все базы в dropdown покрывают все позиции корзины — сайт сам это
-  // посчитал по реальным остаткам; из них берём ту, что выше по
-  // приоритету, настроенному через /bases, а не просто первую в DOM)
+  let выбраннаяБаза = null
   if (availableBases.length > 0) {
     const приоритет = getBasePriority()
-    const отсортированные = [...availableBases].sort((a, b) => {
-      const иА = приоритет.indexOf(a.name)
-      const иБ = приоритет.indexOf(b.name)
-      return (иА === -1 ? 999 : иА) - (иБ === -1 ? 999 : иБ)
-    })
+    const желаемые = Array.isArray(предпочтительныеБазы) ? предпочтительныеБазы : []
+    // Сначала базы, которые менеджер выбрал для позиций заказа; остальные —
+    // по общему приоритету, как и раньше.
+    const ранг = (имя) => {
+      const иЖ = желаемые.indexOf(имя)
+      if (иЖ !== -1) return иЖ
+      const иП = приоритет.indexOf(имя)
+      return 1000 + (иП === -1 ? 999 : иП)
+    }
+    const отсортированные = [...availableBases].sort((a, b) => ранг(a.name) - ранг(b.name))
     const selectedBase = отсортированные[0].name
-    logger.info('Выбираем базу', { база: selectedBase, доступные: availableBases.map(b => b.name), приоритет })
+    выбраннаяБаза = selectedBase
+    logger.info('Выбираем базу', { база: selectedBase, доступные: availableBases.map(b => b.name), желаемые, приоритет })
 
-    // Открываем dropdown
     await page.evaluate(() => {
       document.querySelector('#FactorySel').click()
     })
     await delay(500)
 
-    // Выбираем базу
     await page.evaluate((name) => {
       const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
       const target = Array.from(items).find(a => a.textContent.trim() === name)
@@ -68,20 +179,94 @@ async function placeOrder() {
     logger.info('База выбрана', { база: selectedBase })
   }
 
+  // Сообщения mc.ru в корзине (например, превышен лимит по неоплаченным
+  // счетам, количество изменено сайтом) — показываем менеджеру ОДИН раз,
+  // каждое новое. Само по себе оформление они не останавливают.
+  let предупреждениеКорзины = null
+  const сообщитьПредупреждениеКорзины = async () => {
+    const текст = await прочитатьПредупреждениеКорзины(page).catch(() => null)
+    if (текст && текст !== предупреждениеКорзины) {
+      предупреждениеКорзины = текст
+      logger.warn('Сообщение mc.ru в корзине', { текст })
+      await сообщить(`⚠️ Сообщение mc.ru в корзине:\n${текст}`)
+    }
+  }
+
   // Шаг 3 — первая кнопка оформления
   await page.waitForSelector('#submitBasket', { state: 'visible', timeout: 15000 })
+  await сообщитьПредупреждениеКорзины()
+
+  // ФИКС: после выбора базы смотрим, какие позиции остались активными.
+  // Неактивные (их нет на выбранной базе) в счёт не войдут — раньше это
+  // происходило молча: счёт выписывался на одну позицию из двух, а если
+  // не было ни одной активной — получался пустой заказ «не оформлен».
+  let позицииКорзины = []
+  try {
+    позицииКорзины = await прочитатьПозицииКорзины(page)
+  } catch (e) {
+    await delay(1500)
+    try {
+      позицииКорзины = await прочитатьПозицииКорзины(page)
+    } catch (e2) {
+      logger.warn('Не удалось прочитать чекбоксы позиций в корзине', { error: e2.message })
+    }
+  }
+  logger.info('Позиции в корзине перед оформлением', { база: выбраннаяБаза, позиции: позицииКорзины })
+
+  const выключены = позицииКорзины.filter((p) => !p.включена)
+  if (позицииКорзины.length > 0 && выключены.length === позицииКорзины.length) {
+    throw new Error(
+      `После выбора базы${выбраннаяБаза ? ` «${выбраннаяБаза}»` : ''} в корзине mc.ru нет активных позиций ` +
+      `(${выключены.map((p) => p.название).join('; ')}) — счёт был бы пустым`
+    )
+  }
+  if (выключены.length > 0) {
+    await сообщить(
+      `⚠️ В корзине mc.ru на базе${выбраннаяБаза ? ` «${выбраннаяБаза}»` : ''} неактивны и в счёт НЕ войдут:\n` +
+      выключены.map((p) => `• ${p.название}`).join('\n')
+    )
+  }
   await page.evaluate(() => {
     document.querySelector('#submitBasket').click()
   })
   await delay(1500)
 
-  // Шаг 4 — кнопка в модалке (Оформить заказ или Выписать счета)
+  // Сообщение корзины могло появиться после клика «Оформить заказ»
+  await сообщитьПредупреждениеКорзины()
+
+  // Отказ может появиться уже после первого клика
+  const отказПослеШага3 = await прочитатьОтказОформления(page)
+  if (отказПослеШага3) {
+    logger.warn('mc.ru отменил создание счёта (после шага 3)', { причина: отказПослеШага3 })
+    throw new Error(`mc.ru отменил создание счёта: ${отказПослеШага3}`)
+  }
+
+  // Шаг 4 — кнопка в модалке
   await delay(1000)
-  await page.evaluate(() => {
+  const кнопкаШага4Нажата = await page.evaluate(() => {
     const btn = document.querySelector('#submitBasket3')
-    if (btn) btn.click()
+    if (!btn) return false
+    btn.click()
+    return true
   })
-  await delay(2000)
+  if (!кнопкаШага4Нажата) {
+    logger.warn('Кнопка #submitBasket3 не найдена в модалке — шаг 4 пропущен')
+  }
+
+  // Вместо слепого ожидания 2 с — опрашиваем до 5 с: если mc.ru покажет
+  // окно отказа (например, превышен лимит по выставленным счетам),
+  // сразу сообщаем причину, а не ищем несуществующий новый заказ.
+  for (let i = 0; i < 5; i++) {
+    await delay(1000)
+    const отказ = await прочитатьОтказОформления(page)
+    if (отказ) {
+      logger.warn('mc.ru отменил создание счёта', { причина: отказ })
+      throw new Error(`mc.ru отменил создание счёта: ${отказ}`)
+    }
+  }
+
+  // Последний шанс увидеть сообщение корзины, пока мы ещё на её странице
+  await сообщитьПредупреждениеКорзины()
 
   // Шаг 5 — идём в список заказов
   logger.info('Переходим в список заказов')
@@ -89,8 +274,21 @@ async function placeOrder() {
   await page.waitForLoadState('domcontentloaded')
   await delay(2000)
 
-  // Шаг 6 — ждём появления нового заказа по времени
-  const accountUrl = await waitForOrderReady(page, orderTime)
+  // Шаг 6 — ждём появления нового заказа по времени. Если корзина
+  // выдала сообщение (лимит и т.п.), заказ, скорее всего, не создался —
+  // не ждём все 15 попыток и показываем сообщение в тексте ошибки.
+  let accountUrl
+  try {
+    accountUrl = await waitForOrderReady(page, orderTime, { сокращённо: !!предупреждениеКорзины })
+  } catch (err) {
+    if (предупреждениеКорзины) {
+      throw new Error(
+        `${err.message}\nСообщение mc.ru в корзине: ${предупреждениеКорзины.replace(/\n/g, ' ')}\n` +
+        'Количество в корзине уже изменено сайтом — проверьте корзину и нажмите «Оформить заказ» вручную.'
+      )
+    }
+    throw err
+  }
 
   // Шаг 7 — получаем PDF
   const pdfPath = await getPdfUrlAndDownload(page, accountUrl)
@@ -98,25 +296,30 @@ async function placeOrder() {
   return pdfPath
 }
 
-async function waitForOrderReady(page, orderTime) {
+async function waitForOrderReady(page, orderTime, опции = {}) {
   logger.info('Ждём появления нового заказа...')
-
-  const maxAttempts = 15
+  const maxAttempts = опции.сокращённо ? 4 : 15
+  // Заказ-пустышка «не оформлен» (без ссылки на счёт, сумма 0) сам не
+  // оформится: после стольких подряд наблюдений сдаёмся сразу, а не
+  // крутим все 15 попыток.
+  const ПОРОГ_НЕ_ОФОРМЛЕН = 4
+  let подрядНеОформлен = 0
+  let последнийНеОформлен = null
 
   for (let i = 0; i < maxAttempts; i++) {
     await page.reload({ waitUntil: 'domcontentloaded' })
     await delay(2000)
 
-    const newOrderUrl = await page.evaluate((timeStr) => {
+    const найдено = await page.evaluate((timeStr) => {
       const orderTime = new Date(timeStr)
       const rows = document.querySelectorAll('table tbody tr')
+      let неОформлен = null
 
       for (const row of rows) {
         const dateCell = row.querySelector('td:nth-child(2)')
         if (!dateCell) continue
 
         const dateText = dateCell.innerText.trim()
-        // Формат: "07.07.2026 19:21"
         const parts = dateText.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/)
         if (!parts) continue
 
@@ -130,21 +333,58 @@ async function waitForOrderReady(page, orderTime) {
 
         if (orderDate >= orderTime) {
           const link = row.querySelector('td a[href*="main.asp"]')
-          return link ? link.href : null
+          if (link) return { url: link.href, неОформлен: null }
+
+          // Нет ссылки на счёт. Если в строке «не оформлен» — запоминаем
+          // (реальная вёрстка: статус «не оформлен» в первой и последней
+          // ячейках, «#номер» в последней, сумма — в 3-й ячейке).
+          const текст = (row.innerText || '').replace(/\s+/g, ' ').trim()
+          if (/не оформлен/i.test(текст)) {
+            const суммаЯчейка = row.querySelector('td:nth-child(3)')
+            const номер = текст.match(/#(\d+)/)
+            неОформлен = {
+              номер: номер ? номер[1] : null,
+              сумма: суммаЯчейка ? суммаЯчейка.innerText.trim() : null,
+            }
+          }
         }
       }
-      return null
+      return { url: null, неОформлен }
     }, orderTime.toISOString())
 
-    if (newOrderUrl) {
-      logger.info('Новый заказ найден', { url: newOrderUrl })
-      return newOrderUrl
+    if (найдено.url) {
+      logger.info('Новый заказ найден', { url: найдено.url })
+      return найдено.url
+    }
+
+    if (найдено.неОформлен) {
+      подрядНеОформлен += 1
+      последнийНеОформлен = найдено.неОформлен
+      logger.warn('В списке заказов есть заказ «не оформлен»', {
+        ...найдено.неОформлен,
+        наблюдений: подрядНеОформлен,
+      })
+      if (подрядНеОформлен >= ПОРОГ_НЕ_ОФОРМЛЕН) {
+        const { номер, сумма } = найдено.неОформлен
+        throw new Error(
+          `mc.ru создал заказ${номер ? ` #${номер}` : ''}, но он остался «не оформлен»` +
+          `${сумма !== null ? ` (сумма ${сумма})` : ''} — счёт не сформирован. ` +
+          'Проверьте корзину и заказ на сайте.'
+        )
+      }
+    } else {
+      подрядНеОформлен = 0
     }
 
     logger.info(`Новый заказ ещё не появился, попытка ${i + 1}/${maxAttempts}`)
     await delay(3000)
   }
 
+  if (последнийНеОформлен) {
+    throw new Error(
+      `mc.ru создал заказ${последнийНеОформлен.номер ? ` #${последнийНеОформлен.номер}` : ''}, но он остался «не оформлен» — счёт не сформирован.`
+    )
+  }
   throw new Error('Новый заказ не появился за отведённое время')
 }
 
@@ -201,6 +441,12 @@ async function clearCart(page) {
   await page.waitForLoadState('domcontentloaded')
   await delay(1000)
 
+  // Если нас выкинуло с корзины (потеря сессии), «корзина пуста» ниже была
+  // бы ложной — и старые позиции ушли бы в заказ. Лучше упасть громко.
+  if (!page.url().includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
+    throw new Error(`Не попали на страницу корзины mc.ru (url: ${page.url()}) — возможно, потеряна авторизация`)
+  }
+
   const hasItems = await page.$('a[data-dropdown-toggle="removeHint"]')
   if (!hasItems) {
     logger.info('Корзина уже пуста')
@@ -218,16 +464,23 @@ async function clearCart(page) {
   })
 
   await delay(1000)
+
+  // Проверяем результат: перезагружаем корзину и убеждаемся, что позиций нет
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await delay(1000)
+  const остались = await page.$('a[data-dropdown-toggle="removeHint"]')
+  if (остались) {
+    throw new Error('Корзина mc.ru не очистилась — после подтверждения позиции остались')
+  }
+
   logger.info('Корзина очищена')
 }
 
 async function screenshotCart() {
-  // Создаём НОВУЮ страницу, чтобы не зависеть от состояния текущей
   const page = await getPage();
 
   const CART_URL = 'https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1';
 
-  // Если страница уже в корзине, перезагружаем
   const currentUrl = page.url();
   if (!currentUrl.includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
     logger.info('Переходим в корзину для скриншота');
@@ -242,11 +495,6 @@ async function screenshotCart() {
 
   await delay(1000);
 
-  // ВАЖНО: проверяем, что переход/перезагрузка реально привели нас на
-  // корзину, а не куда-то увело (например, редирект на главную из-за
-  // проблем с сессией, или из-за параллельной навигации того же общего
-  // page откуда-то ещё). Раньше бывало, что скриншот тихо снимался с
-  // главной страницы вместо корзины — теперь ловим это явно, а не молча.
   let реальныйUrl = page.url();
   if (!реальныйUrl.includes('/auction/page.asp/q/mymc/tab/shop/tab1/inf1')) {
     logger.warn('После перехода мы НЕ на странице корзины — похоже на потерю сессии, переавторизуемся и пробуем ещё раз', {
@@ -254,11 +502,6 @@ async function screenshotCart() {
       реальныйUrl,
     });
 
-    // Если дело в слетевшей сессии (а редирект на главную вместо
-    // личного раздела — характерный признак именно этого) — простой
-    // повторный goto на тот же URL ничего не даст, это уже проверено:
-    // раньше повтор БЕЗ переавторизации тоже приводил на главную. Сначала
-    // логинимся заново, потом уже повторяем переход.
     try {
       await authorize();
     } catch (err) {
