@@ -23,7 +23,9 @@ const { экспортироватьЗаявку } = require('../scraper/exportT
 const { handleCalcCommand } = require('./handlers/calc');
 const { handleOrderCommand, handleOrderCallback } = require('./handlers/order');
 const { handleDiposCommand } = require('./handlers/dipos');
+const { handleBrokCommand } = require('./handlers/brok');
 const { запуститьЕжедневноеОбновление: запуститьОбновлениеДипоса } = require('../scraper-dipos/download');
+const { запуститьЕжедневноеОбновление: запуститьОбновлениеБрока } = require('../scraper-brok/download');
 // handlerTimeout: по умолчанию Telegraf обрывает обработчик через 90 секунд и
 // пишет "Promise timed out" — а заявка на 7+ позиций (поиск на mc.ru и КТЗ,
 // потом сбор корзин) идёт заметно дольше. Работа при этом не прерывалась,
@@ -105,6 +107,8 @@ bot.command('calc', handleCalcCommand);
 bot.command('order', handleOrderCommand);
 
 bot.command('dipos', handleDiposCommand);
+
+bot.command('brok', handleBrokCommand);
 
 bot.action(/^o\|/, handleOrderCallback);
 
@@ -190,6 +194,7 @@ bot.command("start", async (ctx) => {
       "Команды:\n" +
       "/order — оформить заказ по последней заявке (склады выбираешь кнопками)\n" +
       "/dipos — прайс Дипоса (для сравнения цен): состояние и обновление\n" +
+      "/brok — прайсы Брок Инвеста, склад Октябрьский (для сравнения цен)\n" +
       "/feedback [текст] — сообщить об ошибке\n" +
       "/skip — пропустить ненайденную позицию"
   );
@@ -346,6 +351,12 @@ logger.info("Бот запущен");
 // Дипос: прайс-лист скачивается каждое утро (≈9:20) — только для сравнения цен
 // в сводной таблице, заказать там нельзя (у Дипоса нет корзины).
 запуститьОбновлениеДипоса({
+  уведомить: ADMIN_ID ? (текст) => bot.telegram.sendMessage(ADMIN_ID, текст) : null,
+});
+
+// Брок Инвест: прайс-листы по категориям (склад «Октябрьский») скачиваются
+// каждое утро (≈9:30) — тоже только для сравнения цен, без заказа через бота.
+запуститьОбновлениеБрока({
   уведомить: ADMIN_ID ? (текст) => bot.telegram.sendMessage(ADMIN_ID, текст) : null,
 });
 
