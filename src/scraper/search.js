@@ -71,6 +71,11 @@ const MARK_GROUPS = [
 function нормализуйМарку(марка) {
   const базовая = (марка || "").toLowerCase().replace(/\s+/g, " ").trim();
 
+  // Рифление листа: на сайте в колонке "марка" стоит "чечев" / "ромб",
+  // а в заявке пишут "чечевица" — приводим к одному виду.
+  if (/^чечев/.test(базовая)) return "чечев";
+  if (/^ромб/.test(базовая)) return "ромб";
+
   for (const группа of MARK_GROUPS) {
     if (группа.patterns.some((p) => p.test(базовая))) {
       return группа.canon;
