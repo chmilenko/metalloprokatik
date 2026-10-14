@@ -55,6 +55,31 @@ if (ADMIN_ID) {
 
 let очередьОбновлений = Promise.resolve();
 
+// Сторож очереди: если обработка одного сообщения зависла (браузер, сайт,
+// ожидание ответа), остальные сообщения вставали бы навсегда. Через 30 минут
+// предупреждаем админа и пускаем очередь дальше. Зависшая задача при этом
+// не прерывается — если она вдруг завершится, просто закончится сама.
+const ЛИМИТ_ОБРАБОТКИ_МС = 30 * 60 * 1000;
+
+function сСторожем(задача, ctx) {
+  let таймер;
+  const сторож = new Promise((resolve) => {
+    таймер = setTimeout(() => {
+      logger.error("Обработка сообщения зависла, освобождаю очередь", { userId: ctx.from?.id });
+      if (ADMIN_ID) {
+        bot.telegram
+          .sendMessage(
+            ADMIN_ID,
+            "⚠️ Обработка одного из сообщений идёт больше 30 минут — похоже, зависла. Очередь освобождена, следующие сообщения будут обработаны. Если бот ведёт себя странно: pm2 restart metalloprokatik."
+          )
+          .catch(() => {});
+      }
+      resolve();
+    }, ЛИМИТ_ОБРАБОТКИ_МС);
+  });
+  return Promise.race([Promise.resolve(задача).finally(() => clearTimeout(таймер)), сторож]);
+}
+
 bot.use(async (ctx, next) => {
   const текст = ctx.message?.text;
   if (текст && ADMIN_ID && String(ctx.from?.id) === String(ADMIN_ID) && ktzCode.ждётКод()) {
@@ -65,7 +90,7 @@ bot.use(async (ctx, next) => {
   }
 
   очередьОбновлений = очередьОбновлений
-    .then(() => next())
+    .then(() => сСторожем(next(), ctx))
     .catch((err) => bot.handleError(err, ctx));
 });
 
@@ -193,61 +218,6 @@ bot.command("feedback", async (ctx) => {
       `🔔 Фидбек от @${ctx.from.username}:\n\n${text}`
     );
   }
-});
-
-// Команда для просмотра заявок
-bot.command("order", async (ctx) => {
-  if (!isAllowed(ctx.from.id)) return;
-
-  const orderId = ctx.message.text.replace("/order", "").trim();
-
-  if (!orderId) {
-    // Показываем последние 5 заявок
-    const recent = getRecentOrders(5);
-    if (recent.length === 0) {
-      await ctx.reply("Заявок пока нет.");
-      return;
-    }
-
-    let text = "📋 Последние заявки:\n\n";
-    recent.forEach((o) => {
-      const icon =
-        o.итог.статус === "завершено"
-          ? "✅"
-          : o.итог.статус === "ошибка"
-            ? "❌"
-            : "⏳";
-      text += `${icon} #${o.id} — ${o.итог.найдено}/${o.итог.всего} позиций\n`;
-      text += `   @${o.username} | ${new Date(o.время).toLocaleString("ru")}\n\n`;
-    });
-    text += "Напиши /order [id] для деталей";
-    await ctx.reply(text);
-    return;
-  }
-
-  const order = getOrder(orderId);
-  if (!order) {
-    await ctx.reply(`❌ Заявка #${orderId} не найдена.`);
-    return;
-  }
-
-  let text = `📋 Заявка #${order.id}\n\n`;
-  text += `Пользователь: @${order.username}\n`;
-  text += `Время: ${new Date(order.время).toLocaleString("ru")}\n`;
-  text += `Статус: ${order.итог.статус}\n\n`;
-  text += `Позиций: ${order.итог.найдено}/${order.итог.всего}\n`;
-  text += `Время обработки: ${order.итог.время_обработки_сек}с\n\n`;
-  text += `Поиск:\n`;
-
-  order.поиск.forEach((s) => {
-    const icon = s.статус === "найдено" ? "✅" : "❌";
-    text += `${icon} ${s.название}\n`;
-    if (s.выбран) {
-      text += `   → ${s.выбран.смц} | ${s.выбран.цена?.toLocaleString("ru")} руб/т\n`;
-    }
-  });
-
-  await ctx.reply(text);
 });
 
 // Команда статистики — только для админа
