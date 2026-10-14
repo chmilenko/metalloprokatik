@@ -1,6 +1,17 @@
 const { askAI } = require('./llm')
 const { loadMap } = require('./searchMapManager')
 
+// Модель иногда склеивает слово с размером ("квадратные60х3", "швеллер16"),
+// и поиск на mc.ru такой запрос не находит. Слово из 4+ кириллических букв,
+// за которым сразу цифра, разделяем пробелом. Короткие марки (Ст3, 09Г2С,
+// А500С) не затрагиваются — для них требуется 4+ буквы подряд.
+function починитьПробелыВЗапросе(запрос) {
+  return запрос
+    .replace(/([а-яё]{4,})(\d)/gi, '$1 $2')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 async function parseOrder(text) {
   const searchMap = loadMap()
 
@@ -399,6 +410,11 @@ ${JSON.stringify(searchMap.поисковые_запросы, null, 2)}
     }
 
     const positions = JSON.parse(clean)
+    for (const поз of positions) {
+      if (поз && typeof поз.поисковый_запрос === 'string') {
+        поз.поисковый_запрос = починитьПробелыВЗапросе(поз.поисковый_запрос)
+      }
+    }
     console.log('=== ПАРСИНГ ===', JSON.stringify(positions, null, 2))
     return positions
   } catch (err) {
@@ -406,4 +422,4 @@ ${JSON.stringify(searchMap.поисковые_запросы, null, 2)}
   }
 }
 
-module.exports = { parseOrder }
+module.exports = { parseOrder, починитьПробелыВЗапросе }

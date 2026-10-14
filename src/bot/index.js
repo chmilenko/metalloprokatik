@@ -48,6 +48,7 @@ const ADMIN_ID = process.env.ADMIN_TELEGRAM_ID;
 
 if (ADMIN_ID) {
   ktzCode.настроитьОтправителя((текст) => bot.telegram.sendMessage(ADMIN_ID, текст));
+  require('../agent/llm').настроитьОтправителя((текст) => bot.telegram.sendMessage(ADMIN_ID, текст));
 } else {
   logger.warn("ADMIN_TELEGRAM_ID не задан — код подтверждения КТЗ нельзя будет запросить через Telegram");
 }
