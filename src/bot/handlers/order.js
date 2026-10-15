@@ -130,7 +130,11 @@ async function handleOrderCallback(ctx) {
   const userId = ctx.from.id;
   const session = getSession(userId);
   const состояние = session.ордерПоток;
-  const data = ctx.callbackQuery.data; // "o|<idx>|<baseIdx|x>" | "o|confirm" | "o|cancel"
+  const data = ctx.callbackQuery.data;
+  if (data === 'o|lim|yes' || data === 'o|lim|no') {
+    await ответНаЛимит(ctx, userId, data === 'o|lim|yes');
+    return;
+  } // "o|<idx>|<baseIdx|x>" | "o|confirm" | "o|cancel"
 
   // ФИКС: проверяем актуальность сессии ДО обработки confirm/cancel —
   // иначе тап по кнопке "Оформить"/"Отменить" на сообщении, пережившем
@@ -469,6 +473,7 @@ async function выполниЗаказ(ctx, userId) {
 
   // Оформление счёта mc.ru — подключено, та же схема, что и КТЗ.
   let скриншотОшибки = false;
+  let вопросЛимит = null;
   if (выборMcRu.length > 0) {
     доска.обновить(этапСчёт, 'идёт');
     try {
@@ -497,6 +502,7 @@ async function выполниЗаказ(ctx, userId) {
           `\n\nИх нужно оформить отдельно.`
         );
       }
+      вопросЛимит = { базыДляСчёта, базаСчёта, названия: выборMcRu.map((з) => з.названиеСтроки) };
       const pdfPath = await placeOrder(базыДляСчёта, {
         приПредупреждении: (текст) => { итоговыеПроблемы.push(String(текст)); },
         ожидаемые: выборMcRu.map((з) => ({ ключ: з.названиеСтроки, название: з.вариант.название })),
@@ -526,12 +532,31 @@ async function выполниЗаказ(ctx, userId) {
     } catch (err) {
       logger.error('Ошибка оформления счёта на mc.ru', { userId, error: err.message });
       const отказСайта = err.message.startsWith('mc.ru отменил создание счёта');
-      доска.обновить(этапСчёт, 'ошибка', err.message);
-      итоговыеПроблемы.push(
-        `❌ Не удалось оформить счёт на mc.ru: ${err.message}` +
-        (отказСайта ? '\n\nПозиции остались в корзине mc.ru — проверьте её и оформите вручную.' : '')
-      );
-      скриншотОшибки = true;
+      if (err.лимит) {
+        доска.обновить(этапСчёт, 'ошибка', 'превышен лимит по неоплаченным счетам');
+        итоговыеПроблемы.push(
+          '⚠️ Счёт на mc.ru не создан: превышен лимит по неоплаченным счетам' +
+          (err.позицииЛимита && err.позицииЛимита.length
+            ? ' по позициям:\n' + err.позицииЛимита.map((п) => `• ${п}`).join('\n')
+            : '.') +
+          '\n\nСайт изменил количество (обычно до 0). Оплатите или удалите старые неоплаченные счета на mc.ru и оформите заново.'
+        );
+        // скриншот не нужен — причина понятна из сообщения; спросим, оформлять ли без этих позиций
+        вопросЛимит.позиции = err.позицииЛимита || [];
+        if (err.остальных === 0) {
+          // в корзине нечего оформлять без проблемной позиции — вопрос не нужен
+          вопросЛимит = null;
+          итоговыеПроблемы.push('Остальных позиций в корзине mc.ru нет, поэтому счёт не оформляю. Оплатите/удалите старые счета и повторите.');
+        }
+      } else {
+        доска.обновить(этапСчёт, 'ошибка', err.message);
+        итоговыеПроблемы.push(
+          `❌ Не удалось оформить счёт на mc.ru: ${err.message}` +
+          (отказСайта ? '\n\nПозиции остались в корзине mc.ru — проверьте её и оформите вручную.' : '')
+        );
+        скриншотОшибки = true;
+        вопросЛимит = null;
+      }
     }
   }
 
@@ -578,6 +603,54 @@ async function выполниЗаказ(ctx, userId) {
   }
 
   setSession(userId, { ордерПоток: null });
+
+  if (вопросЛимит && вопросЛимит.позиции !== undefined) {
+    setSession(userId, { лимитОжидание: вопросЛимит });
+    await ctx.reply(
+      'Оформить счёт на mc.ru БЕЗ ' +
+        (вопросЛимит.позиции.length ? 'позиций с превышенным лимитом:\n' + вопросЛимит.позиции.map((п) => `• ${п}`).join('\n') : 'этих позиций') +
+        '\n\nСайт уже обнулил их в корзине.',
+      { reply_markup: { inline_keyboard: [[
+        { text: '✅ Да, оформить без них', callback_data: 'o|lim|yes' },
+        { text: '❌ Нет, оставить корзину', callback_data: 'o|lim|no' },
+      ]] } }
+    );
+  } else {
+    вопросЛимит = null;
+  }
+}
+
+/** Ответ на вопрос «оформить счёт без позиций с превышенным лимитом?» */
+async function ответНаЛимит(ctx, userId, да) {
+  const ожидание = getSession(userId).лимитОжидание;
+  if (!ожидание) {
+    await ctx.answerCbQuery('Вопрос устарел — начните заново через /order');
+    return;
+  }
+  setSession(userId, { лимитОжидание: null });
+  await ctx.answerCbQuery();
+  if (!да) {
+    await ctx.editMessageText('Ок, корзину mc.ru не трогаю — позиции остались там, оформите вручную.');
+    return;
+  }
+  await ctx.editMessageText('⏳ Оформляю счёт на mc.ru без позиций с превышенным лимитом…');
+  try {
+    const { placeOrder } = require('../../scraper/order');
+    const pdfPath = await placeOrder(ожидание.базыДляСчёта, { продолжитьБезЛимитных: true });
+    await ctx.replyWithDocument(
+      { source: pdfPath, filename: 'Счёт_mc.ru.pdf' },
+      { caption: `Счёт mc.ru, база «${ожидание.базаСчёта}», без позиций с превышенным лимитом.` }
+    );
+  } catch (err) {
+    logger.error('Ошибка оформления счёта mc.ru после лимита', { userId, error: err.message });
+    await ctx.reply(`❌ Не удалось оформить счёт на mc.ru: ${err.message}`);
+    try {
+      const скриншот = await screenshotCart();
+      await ctx.replyWithPhoto({ source: скриншот }, { caption: 'Корзина mc.ru на момент ошибки' });
+    } catch (e) {
+      logger.warn('Не удалось сделать скриншот корзины', { error: e.message });
+    }
+  }
 }
 
 module.exports = { handleOrderCommand, handleOrderCallback };
