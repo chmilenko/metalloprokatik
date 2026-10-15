@@ -63,6 +63,17 @@ async function прочитатьПозицииКорзины(page) {
           включена: inp.checked && !inp.disabled,
           checked: inp.checked,
           disabled: inp.disabled,
+          количество: (() => {
+            // поле «Количество» лежит в той же строке корзины; если не нашли — null
+            let узел = inp.parentElement
+            for (let i = 0; i < 6 && узел; i++, узел = узел.parentElement) {
+              const поле = Array.from(узел.querySelectorAll('input')).find(
+                (x) => x !== inp && x.type !== 'checkbox' && x.type !== 'hidden' && x.value !== '' && !isNaN(parseFloat(String(x.value).replace(',', '.')))
+              )
+              if (поле) return parseFloat(String(поле.value).replace(',', '.'))
+            }
+            return null
+          })(),
         }
       })
   })
@@ -96,6 +107,24 @@ async function прочитатьПредупреждениеКорзины(page
     }
   }
   return null
+}
+
+// Сверка названия товара из заказа с названием в корзине. Точное сравнение строк не годится:
+// корзина дописывает марку/длину и меняет «х» на «x», а в названии из таблицы бывают «г/к»,
+// «ГОСТ» и т.п. Поэтому: совпадает первое слово и ВСЕ «числовые» части названия (размеры, серии).
+function названиеСовпадает(ожидаемое, фактическое) {
+  const части = (т) =>
+    String(т || '').toLowerCase().replace(/x/g, 'х').replace(/ё/g, 'е').split(/[^0-9a-zа-я]+/).filter(Boolean)
+  const о = части(ожидаемое)
+  const ф = части(фактическое)
+  if (о.length === 0 || ф.length === 0) return false
+  if (!ф.includes(о[0]) && !ф.some((x) => x.startsWith(о[0].slice(0, 5)))) return false
+  const числовые = о.filter((x) => /\d/.test(x))
+  return числовые.every((x) => ф.includes(x))
+}
+
+function добавитьПроблему(список, ожидаемая, причина) {
+  список.push({ ключ: ожидаемая.ключ, название: ожидаемая.название, причина })
 }
 
 async function placeOrder(предпочтительныеБазы = [], опции = {}) {
@@ -164,18 +193,32 @@ async function placeOrder(предпочтительныеБазы = [], опц�
     выбраннаяБаза = selectedBase
     logger.info('Выбираем базу', { база: selectedBase, доступные: availableBases.map(b => b.name), желаемые, приоритет })
 
-    await page.evaluate(() => {
-      document.querySelector('#FactorySel').click()
-    })
-    await delay(500)
+    // Если база уже выбрана (в выпадающем списке она единственная или стоит текущей) —
+    // повторно по ней НЕ кликаем: клик перезагружает страницу (переход на /q/zakaz/m/1),
+    // и кнопка «Оформить заказ» не успевала появиться (ошибка по таймауту #submitBasket).
+    const текущая = await page.evaluate(() => {
+      const el = document.querySelector('#FactorySel')
+      return el ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : ''
+    }).catch(() => '')
+    const ужеВыбрана = текущая.includes(selectedBase)
+    if (ужеВыбрана) {
+      logger.info('База уже выбрана — клик не нужен', { база: selectedBase })
+    } else {
+      await page.evaluate(() => {
+        document.querySelector('#FactorySel').click()
+      })
+      await delay(500)
 
-    await page.evaluate((name) => {
-      const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
-      const target = Array.from(items).find(a => a.textContent.trim() === name)
-      if (target) target.click()
-    }, selectedBase)
+      await page.evaluate((name) => {
+        const items = document.querySelectorAll('.dropdown-menu a[data-name="base"]')
+        const target = Array.from(items).find(a => a.textContent.trim() === name)
+        if (target) target.click()
+      }, selectedBase)
 
-    await delay(1000)
+      // выбор базы может перезагрузить страницу — ждём, пока она догрузится
+      await page.waitForLoadState('domcontentloaded', { timeout: 45000 }).catch(() => {})
+      await delay(1000)
+    }
     logger.info('База выбрана', { база: selectedBase })
   }
 
@@ -193,7 +236,16 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   }
 
   // Шаг 3 — первая кнопка оформления
-  await page.waitForSelector('#submitBasket', { state: 'visible', timeout: 15000 })
+  try {
+    await page.waitForSelector('#submitBasket', { state: 'visible', timeout: 30000 })
+  } catch (e) {
+    // страница могла застрять посреди перехода — перезагружаем корзину и ждём ещё раз
+    logger.warn('Кнопка «Оформить заказ» не появилась — перезагружаю корзину', { url: page.url(), error: e.message.split('\n')[0] })
+    await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1', { timeout: 60000 })
+    await page.waitForLoadState('domcontentloaded')
+    await delay(2000)
+    await page.waitForSelector('#submitBasket', { state: 'visible', timeout: 30000 })
+  }
   await сообщитьПредупреждениеКорзины()
 
   // ФИКС: после выбора базы смотрим, какие позиции остались активными.
@@ -212,6 +264,21 @@ async function placeOrder(предпочтительныеБазы = [], опц�
     }
   }
   logger.info('Позиции в корзине перед оформлением', { база: выбраннаяБаза, позиции: позицииКорзины })
+
+  // Сверяем корзину с тем, что бот добавлял: пропавшие позиции и нулевое количество
+  // (например, сайт срезал до 0 из-за лимита по неоплаченным счетам) — сообщаем.
+  if (Array.isArray(опции.ожидаемые) && опции.ожидаемые.length > 0 && позицииКорзины.length > 0) {
+    const проблемы = []
+    for (const ож of опции.ожидаемые) {
+      const строка = позицииКорзины.find((p) => названиеСовпадает(ож.название, p.название))
+      if (!строка) добавитьПроблему(проблемы, ож, 'в корзине mc.ru такой позиции нет (не добавилась или пропала)')
+      else if (строка.количество === 0) добавитьПроблему(проблемы, ож, 'в корзине количество 0 (сайт мог срезать его из-за лимита по неоплаченным счетам)')
+    }
+    if (проблемы.length > 0) {
+      logger.warn('Корзина mc.ru не совпадает с заказом', { проблемы })
+      if (typeof опции.приПроверкеКорзины === 'function') await опции.приПроверкеКорзины(проблемы)
+    }
+  }
 
   const выключены = позицииКорзины.filter((p) => !p.включена)
   if (позицииКорзины.length > 0 && выключены.length === позицииКорзины.length) {

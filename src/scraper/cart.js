@@ -178,31 +178,32 @@ async function addToCart(variant, quantity, unit = "т") {
     await page.waitForSelector("#addbasket", { state: "visible", timeout: 5000 });
   } catch (e) {
     logger.info("Модалка не появилась, возможно товар уже в корзине");
-    return { adjusted: false, adjustmentMessage: null };
+    throw new Error(`WARNING:${variant.название}|после нажатия кнопки корзины окно количества не появилось`);
   }
   await delay(500);
 
   const iframeElement = await page.$("#addbasket");
   if (!iframeElement) {
     logger.warn("Не нашли iframe #addbasket");
-    return { adjusted: false, adjustmentMessage: null };
+    throw new Error(`WARNING:${variant.название}|окно количества не открылось`);
   }
 
   const iframe = await iframeElement.contentFrame();
   if (!iframe) {
     logger.warn("Не удалось получить contentFrame");
-    return { adjusted: false, adjustmentMessage: null };
+    throw new Error(`WARNING:${variant.название}|окно количества не открылось`);
   }
 
   try {
     await iframe.waitForSelector("#tonns", { state: "visible", timeout: 5000 });
   } catch (e) {
     logger.warn("Не нашли #tonns в iframe");
-    return { adjusted: false, adjustmentMessage: null };
+    const текст = await iframe.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 200)).catch(() => '');
+    throw new Error(`WARNING:${variant.название}|в окне нет поля количества (сайт показал сообщение)${текст ? ': ' + текст : ''}`);
   }
   await delay(500);
 
-  await ввестиКоличество(iframe, quantity, unit);
+  await ввестиКоличество(iframe, quantity, unit, variant);
 
   const инфоСообщение = await прочитатьИнформацию(iframe);
   if (инфоСообщение) {
@@ -212,9 +213,13 @@ async function addToCart(variant, quantity, unit = "т") {
     });
   }
 
-  const errorMessage = await проверитьОшибки(iframe);
+  const errorMessageСайта = await проверитьОшибки(iframe);
+  // Страховка: сайт мог молча изменить количество (лимит и т.п.) без понятного сообщения —
+  // сверяем то, что осталось в поле, с тем, что вводили.
+  const расхождение = await проверитьВведённое(iframe, quantity, unit);
+  const errorMessage = errorMessageСайта || расхождение;
   const этоКорректировкаКоличества = errorMessage &&
-    /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
+    (расхождение || /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage));
 
   if (errorMessage && !этоКорректировкаКоличества) {
     logger.warn("Предупреждение при добавлении в корзину", {
@@ -372,31 +377,32 @@ async function добавитьЧерезКарточку(page, variant, quantit
     await page.waitForSelector("#addbasket", { state: "visible", timeout: 5000 });
   } catch (e) {
     logger.info("Модалка не появилась, возможно товар уже в корзине");
-    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
+    throw new Error(`WARNING:${variant.название}|после нажатия кнопки корзины окно количества не появилось`);
   }
   await delay(500);
 
   const iframeElement = await page.$("#addbasket");
   if (!iframeElement) {
     logger.warn("Не нашли iframe #addbasket");
-    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
+    throw new Error(`WARNING:${variant.название}|окно количества не открылось`);
   }
 
   const iframe = await iframeElement.contentFrame();
   if (!iframe) {
     logger.warn("Не удалось получить contentFrame");
-    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
+    throw new Error(`WARNING:${variant.название}|окно количества не открылось`);
   }
 
   try {
     await iframe.waitForSelector("#tonns", { state: "visible", timeout: 5000 });
   } catch (e) {
     logger.warn("Не нашли #tonns в iframe");
-    return { adjusted: false, adjustmentMessage: null, baseNotSelected: базаНеВыбрана };
+    const текст = await iframe.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 200)).catch(() => '');
+    throw new Error(`WARNING:${variant.название}|в окне нет поля количества (сайт показал сообщение)${текст ? ': ' + текст : ''}`);
   }
   await delay(500);
 
-  await ввестиКоличество(iframe, quantity, unit);
+  await ввестиКоличество(iframe, quantity, unit, variant);
 
   const инфоСообщение = await прочитатьИнформацию(iframe);
   if (инфоСообщение) {
@@ -406,9 +412,13 @@ async function добавитьЧерезКарточку(page, variant, quantit
     });
   }
 
-  const errorMessage = await проверитьОшибки(iframe);
+  const errorMessageСайта = await проверитьОшибки(iframe);
+  // Страховка: сайт мог молча изменить количество (лимит и т.п.) без понятного сообщения —
+  // сверяем то, что осталось в поле, с тем, что вводили.
+  const расхождение = await проверитьВведённое(iframe, quantity, unit);
+  const errorMessage = errorMessageСайта || расхождение;
   const этоКорректировкаКоличества = errorMessage &&
-    /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage);
+    (расхождение || /уменьшен|скорректирован|максимальный объём заказа/i.test(errorMessage));
 
   if (errorMessage && !этоКорректировкаКоличества) {
     logger.warn("Предупреждение при добавлении в корзину", {
@@ -447,7 +457,29 @@ async function добавитьЧерезКарточку(page, variant, quantit
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
 
-async function ввестиКоличество(iframe, quantity, unit) {
+/**
+ * После ввода читаем значение поля обратно. Для т — #tonns, для м/шт при видимом поле метров — #meters.
+ * Если значение отличается от введённого больше чем на 25% — сообщаем (иначе в корзине тихо окажется
+ * другое количество, как было с «150 кг» → 20).
+ */
+async function проверитьВведённое(iframe, quantity, unit) {
+  try {
+    const поле = unit === "м" || unit === "шт" ? "#meters" : "#tonns";
+    const данные = await iframe.$eval(поле, (el) => ({ тип: el.type, значение: el.value }));
+    if (данные.тип === "hidden") return null;
+    const факт = parseFloat(String(данные.значение).replace(",", "."));
+    const хотели = Number(quantity);
+    if (!Number.isFinite(факт) || !(хотели > 0)) return null;
+    if (Math.abs(факт - хотели) / хотели > 0.25) {
+      return `сайт изменил количество: вводили ${хотели} ${unit}, в поле осталось ${факт}`;
+    }
+  } catch (e) {
+    // не критично
+  }
+  return null;
+}
+
+async function ввестиКоличество(iframe, quantity, unit, variant = {}) {
   if (unit === "м" || unit === "шт") {
     const metersType = await iframe.$eval("#meters", (el) => el.type).catch(() => "hidden");
     if (metersType !== "hidden") {
@@ -455,10 +487,20 @@ async function ввестиКоличество(iframe, quantity, unit) {
       await delay(200);
       await iframe.type("#meters", String(quantity), { delay: 100 });
     } else {
-      logger.warn("Поле метров скрыто — вводим в тонны", { quantity });
+      // Поля метров на карточке нет (например катанка в мотках) — можно вводить
+      // только тонны. ВАЖНО: метры в поле тонн вводить НЕЛЬЗЯ (78 м превратились бы
+      // в 78 т). Тонны берём из расчёта по весу метра (считает /order заранее).
+      const тонны = Number(variant && variant._тоннЭквивалент);
+      if (!(тонны > 0)) {
+        throw new Error(
+          `WARNING:${variant && variant.название}|на карточке нет поля метров, а перевести ${quantity} ${unit} в тонны не удалось — ` +
+            `укажите эту позицию в тоннах`
+        );
+      }
+      logger.warn("Поле метров скрыто — вводим пересчитанные тонны", { запрошено: `${quantity} ${unit}`, тонны });
       await iframe.click("#tonns", { clickCount: 3 });
       await delay(200);
-      await iframe.type("#tonns", String(quantity), { delay: 100 });
+      await iframe.type("#tonns", String(тонны), { delay: 100 });
     }
   } else {
     await iframe.click("#tonns", { clickCount: 3 });

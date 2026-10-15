@@ -40,7 +40,7 @@ function этоФайлЭксель(буфер) {
  * Скачивает файл прайса в downloads/dipos-price.xls. Возвращает путь.
  * @param {{видимыйБраузер?: boolean}} опции
  */
-async function скачатьФайл({ видимыйБраузер = false } = {}) {
+async function скачатьБраузером({ видимыйБраузер = false } = {}) {
   const { chromium } = require("playwright");
   const браузер = await chromium.launch({ headless: !видимыйБраузер });
   try {
@@ -76,18 +76,45 @@ async function скачатьФайл({ видимыйБраузер = false } =
       }
     }
 
-    if (!этоФайлЭксель(буфер) || буфер.length < МИН_РАЗМЕР_ФАЙЛА) {
-      throw new Error(`Скачан не прайс (размер ${буфер ? буфер.length : 0} байт, это не Excel-файл)`);
-    }
-
-    const папка = path.dirname(ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ);
-    if (!fs.existsSync(папка)) fs.mkdirSync(папка, { recursive: true });
-    const времянка = `${ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ}.tmp`;
-    fs.writeFileSync(времянка, буфер);
-    fs.renameSync(времянка, ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ);
-    return ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ;
+    return сохранитьБуфер(буфер);
   } finally {
     await браузер.close().catch(() => {});
+  }
+}
+
+function сохранитьБуфер(буфер) {
+  if (!этоФайлЭксель(буфер) || буфер.length < МИН_РАЗМЕР_ФАЙЛА) {
+    throw new Error(`Скачан не прайс (размер ${буфер ? буфер.length : 0} байт, это не Excel-файл)`);
+  }
+  const папка = path.dirname(ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ);
+  if (!fs.existsSync(папка)) fs.mkdirSync(папка, { recursive: true });
+  const времянка = `${ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ}.tmp`;
+  fs.writeFileSync(времянка, буфер);
+  fs.renameSync(времянка, ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ);
+  return ФАЙЛ_ПРАЙСА_ЭКСЕЛЬ;
+}
+
+/** Запасной путь без браузера: прямой запрос файла (если браузер не смог открыть сайт). */
+async function скачатьПрямо() {
+  const адрес = new URL("/price/price.xls", АДРЕС_САЙТА).toString();
+  const ответ = await fetch(адрес, {
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36" },
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!ответ.ok) throw new Error(`HTTP ${ответ.status}`);
+  return сохранитьБуфер(Buffer.from(await ответ.arrayBuffer()));
+}
+
+async function скачатьФайл(опции = {}) {
+  try {
+    return await скачатьБраузером(опции);
+  } catch (err) {
+    logger.warn("Дипос: через браузер не вышло, пробую прямой запрос", { error: err.message.split("\n")[0] });
+    try {
+      return await скачатьПрямо();
+    } catch (err2) {
+      throw new Error(`${err.message.split("\n")[0]} (прямой запрос тоже: ${err2.message})`);
+    }
   }
 }
 
@@ -163,7 +190,7 @@ function запуститьЕжедневноеОбновление({ уведо
     try {
       const р = await обновитьПрайс();
       logger.info("Дипос: плановое обновление прайса прошло", { дата: р.датаПрайсаТекст });
-      if (номер > 1) await сказать(`✅ Прайс Дипоса обновлён (от ${р.датаПрайсаТекст}) — со ${номер}-й попытки.`);
+      await сказать(`🔄 Прайс Дипоса обновлён (от ${р.датаПрайсаТекст})` + (номер > 1 ? ` — со ${номер}-й попытки.` : "."));
       return true;
     } catch (err) {
       logger.error("Дипос: не удалось обновить прайс", { попытка: номер, error: err.message });

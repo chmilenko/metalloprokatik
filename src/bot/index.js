@@ -24,6 +24,9 @@ const { handleCalcCommand } = require('./handlers/calc');
 const { handleOrderCommand, handleOrderCallback } = require('./handlers/order');
 const { handleDiposCommand } = require('./handlers/dipos');
 const { handleBrokCommand } = require('./handlers/brok');
+const { handleStartCommand, handleHelpCommand, КОМАНДЫ_МЕНЮ } = require('./handlers/help');
+const { handlePricesCommand } = require('./handlers/prices');
+const { доступ, КОМАНДЫ_АДМИНА } = require('./handlers/access');
 const { запуститьЕжедневноеОбновление: запуститьОбновлениеДипоса } = require('../scraper-dipos/download');
 const { запуститьЕжедневноеОбновление: запуститьОбновлениеБрока } = require('../scraper-brok/download');
 // handlerTimeout: по умолчанию Telegraf обрывает обработчик через 90 секунд и
@@ -81,6 +84,10 @@ function сСторожем(задача, ctx) {
   });
   return Promise.race([Promise.resolve(задача).finally(() => clearTimeout(таймер)), сторож]);
 }
+
+// Доступ: проверка «кто в списке», запросы доступа и команды /adduser /deluser /users —
+// ДО общей очереди, чтобы кнопки администратора срабатывали сразу, даже пока бот занят заказом.
+bot.use(доступ());
 
 bot.use(async (ctx, next) => {
   const текст = ctx.message?.text;
@@ -176,29 +183,9 @@ bot.command("skip", async (ctx) => {
   }
 });
 
-bot.command("start", async (ctx) => {
-  if (!isAllowed(ctx.from.id)) {
-    await ctx.reply("⛔ У вас нет доступа к этому боту.");
-    return;
-  }
-  await ctx.reply(
-    "👋 Привет! Я бот для заказов на mc.ru\n\n" +
-      "Напиши список позиций металлопроката и я:\n" +
-      "1. Найду их на сайте\n" +
-      "2. Добавлю в корзину\n" +
-      "3. Покажу скриншот корзины\n" +
-      "4. Оформлю заказ и пришлю PDF\n\n" +
-      "Пример:\n" +
-      "Труба ВГП ДУ15 стенка 2 одна тонна\n" +
-      "Арматура А500С диаметр 12 две тонны\n\n" +
-      "Команды:\n" +
-      "/order — оформить заказ по последней заявке (склады выбираешь кнопками)\n" +
-      "/dipos — прайс Дипоса (для сравнения цен): состояние и обновление\n" +
-      "/brok — прайсы Брок Инвеста, склад Октябрьский (для сравнения цен)\n" +
-      "/feedback [текст] — сообщить об ошибке\n" +
-      "/skip — пропустить ненайденную позицию"
-  );
-});
+bot.command("start", handleStartCommand);
+bot.command("help", handleHelpCommand);
+bot.command("prices", handlePricesCommand);
 
 // Команда для обратной связи
 bot.command("feedback", async (ctx) => {
@@ -347,6 +334,12 @@ process.on('uncaughtException', (err) => {
   // но если браузер и правда умер, следующий getPage() пересоздаст его
 })
 logger.info("Бот запущен");
+bot.telegram.setMyCommands(КОМАНДЫ_МЕНЮ).catch((e) => logger.warn("Не удалось задать меню команд", { error: e.message }));
+if (ADMIN_ID) {
+  bot.telegram
+    .setMyCommands([...КОМАНДЫ_МЕНЮ, ...КОМАНДЫ_АДМИНА], { scope: { type: "chat", chat_id: Number(ADMIN_ID) } })
+    .catch((e) => logger.warn("Не удалось задать меню команд администратора", { error: e.message }));
+}
 
 // Дипос: прайс-лист скачивается каждое утро (≈9:20) — только для сравнения цен
 // в сводной таблице, заказать там нельзя (у Дипоса нет корзины).
