@@ -329,7 +329,20 @@ async function добавитьЧерезКарточку(page, variant, quantit
   // НАЖИМАЕМ КНОПКУ "ДОБАВИТЬ В КОРЗИНУ"
   // ============================================================
 
-  let basketBtn = await page.$('button.catIcon.in._basket, button._basket');
+  // На карточке несколько кнопок «в корзину» — по одной на базу (id вида btn_<товар>_<код базы>,
+  // например ..._3 Карачарово, ..._4 Очаково, ..._H7 Коровино). Раньше бралась первая в DOM,
+  // поэтому в корзину попадала не та база. Берём кнопку именно выбранной базы.
+  let basketBtn = null;
+  if (целеваяБаза) {
+    try {
+      const р = await найтиКнопкуДляБазы(page, целеваяБаза);
+      logger.info("Кнопки корзины на карточке", { целеваяБаза, выбрана: р.id, способ: р.способ, кнопки: р.кнопки, атрибутыСтроки: р.атрибутыСтроки });
+      if (р.id) basketBtn = await page.$(`[id="${р.id}"]`);
+    } catch (e) {
+      logger.warn("Не удалось подобрать кнопку под базу", { error: e.message });
+    }
+  }
+  if (!basketBtn) basketBtn = await page.$('button.catIcon.in._basket, button._basket');
 
   if (!basketBtn) {
     basketBtn = await page.$('button[id*="_basket"]');
@@ -574,6 +587,44 @@ async function нажатьКнопкуВМодалке(iframe) {
     );
     if (btn) btn.click();
   });
+}
+
+
+const КОДЫ_БАЗ = { 'Карачарово': '3', 'Очаково': '4', 'Коровино': 'H7', 'Балашиха': '3O' };
+
+async function найтиКнопкуДляБазы(page, база) {
+  return await page.evaluate(({ база, коды }) => {
+    const кнопки = Array.from(document.querySelectorAll('button[id^="btn_"], button._basket'));
+    const инфо = кнопки.map((b) => ({ id: b.id, видима: b.getClientRects().length > 0 }));
+    const строки = Array.from(document.querySelectorAll('table#tab_main1 tbody tr'));
+    const строка = строки.find((r) => (r.getAttribute('data-base') || '').trim() === база);
+    const атрибуты = строка ? Array.from(строка.attributes).map((a) => `${a.name}=${a.value}`) : null;
+    const ответ = (btn, способ) => ({ id: btn ? btn.id : null, способ, кнопки: инфо, атрибутыСтроки: атрибуты });
+
+    // 1. кнопка внутри строки выбранной базы
+    if (строка) {
+      const b = строка.querySelector('button[id^="btn_"], button._basket');
+      if (b) return ответ(b, 'в строке базы');
+      // 2. код базы из атрибутов строки = суффикс id кнопки
+      for (const a of Array.from(строка.attributes)) {
+        const код = (a.value || '').trim();
+        if (код && код.length <= 3) {
+          const m = кнопки.find((b) => b.id.endsWith('_' + код));
+          if (m) return ответ(m, 'по коду из атрибутов строки');
+        }
+      }
+    }
+    // 3. известный код базы
+    const код = коды[база];
+    if (код) {
+      const m = кнопки.find((b) => b.id.endsWith('_' + код));
+      if (m) return ответ(m, 'по известному коду базы');
+    }
+    // 4. единственная видимая кнопка
+    const видимые = кнопки.filter((b) => b.getClientRects().length > 0);
+    if (видимые.length === 1) return ответ(видимые[0], 'единственная видимая');
+    return ответ(null, 'не найдена');
+  }, { база, коды: КОДЫ_БАЗ });
 }
 
 async function выбратьБазуНаКарточке(page, целеваяБаза) {

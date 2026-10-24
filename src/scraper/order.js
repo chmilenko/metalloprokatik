@@ -60,6 +60,7 @@ async function прочитатьПозицииКорзины(page) {
         const ссылка = блок ? блок.querySelector('._namet a') : null
         return {
           id: inp.id,
+          база: (() => { const tr = inp.closest('tr'); const td = tr && tr.querySelector('td.base_name'); return td ? td.innerText.replace(/\s+/g, ' ').trim() : null })(),
           название: ссылка ? ссылка.innerText.replace(/\s+/g, ' ').trim() : inp.id,
           включена: inp.checked && !inp.disabled,
           checked: inp.checked,
@@ -235,7 +236,7 @@ async function placeOrder(предпочтительныеБазы = [], опц�
 
   // Шаг 2 — если есть выбор базы, выбираем по нашему приоритету
   let выбраннаяБаза = null
-  if (availableBases.length > 0) {
+  if (availableBases.length > 0 && !опции.смешанныеБазы) {
     const приоритет = getBasePriority()
     const желаемые = Array.isArray(предпочтительныеБазы) ? предпочтительныеБазы : []
     // Сначала базы, которые менеджер выбрал для позиций заказа; остальные —
@@ -299,7 +300,7 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   // При лимите возвращаемся в корзину: сайт обнулил проблемные позиции, их названия
   // читаем из .pageBasketError, а при его отсутствии — по нулевому количеству.
   const обработатьОтказ = async (отказ) => {
-    if (!ЛИМИТ_RE.test(отказ) || опции.продолжитьБезЛимитных) {
+    if (!ЛИМИТ_RE.test(отказ) || (опции.продолжитьБезЛимитных && !опции.повторПослеЛимита)) {
       throw new Error(`mc.ru отменил создание счёта: ${отказ}`)
     }
     await page.goto(URL_КОРЗИНЫ, { timeout: 60000 }).catch(() => {})
@@ -309,6 +310,28 @@ async function placeOrder(предпочтительныеБазы = [], опц�
     const строки = await прочитатьПозицииКорзины(page).catch(() => [])
     let проблемные = текст && ЛИМИТ_RE.test(текст) ? позицииИзЛимита(текст) : []
     if (проблемные.length === 0) проблемные = строки.filter((p) => p.количество === 0).map((p) => p.название)
+    if (опции.повторПослеЛимита) {
+      // Менеджер согласился оформить без этих позиций: сайт уже обнулил их —
+      // снимаем с них галочки и выписываем счёт на остальные.
+      const нулевые = строки.filter((p) => p.включена && p.количество === 0).map((p) => p.id)
+      const остальные = строки.filter((p) => p.включена && p.количество !== 0 && !нулевые.includes(p.id))
+      if (нулевые.length === 0 || остальные.length === 0) {
+        throw new Error('Нет позиций, которые можно оформить без позиций с превышенным лимитом')
+      }
+      await page.evaluate((ids) => {
+        for (const id of ids) {
+          const el = document.getElementById(id)
+          if (el && el.checked) el.click()
+        }
+      }, нулевые)
+      await delay(800)
+      logger.info('Лимит: сняты позиции с нулевым количеством, оформляю остальные', { нулевые })
+      await page.evaluate(() => { const b = document.querySelector('#submitBasket'); if (b) b.click() })
+      await delay(2500)
+      await page.evaluate(() => { const b = document.querySelector('#submitBasket3'); if (b) b.click() })
+      await delay(3000)
+      return 'повторено'
+    }
     const err = ошибкаЛимита(`превышен лимит по неоплаченным счетам:\n${проблемные.join('\n')}`)
     err.позицииЛимита = проблемные
     err.остальных = строки.filter((p) => p.количество !== 0 && p.количество !== null).length
@@ -405,15 +428,17 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   }
 
   // Отказ может появиться уже после первого клика
+  let счётУжеПовторён = false
   const отказПослеШага3 = await прочитатьОтказОформления(page)
   if (отказПослеШага3) {
     logger.warn('mc.ru отменил создание счёта (после шага 3)', { причина: отказПослеШага3 })
-    await обработатьОтказ(отказПослеШага3)
+    const р3 = await обработатьОтказ(отказПослеШага3)
+    if (р3 === 'повторено') счётУжеПовторён = true
   }
 
   // Шаг 4 — кнопка в модалке
   await delay(1000)
-  const кнопкаШага4Нажата = await page.evaluate(() => {
+  const кнопкаШага4Нажата = счётУжеПовторён || await page.evaluate(() => {
     const btn = document.querySelector('#submitBasket3')
     if (!btn) return false
     btn.click()
@@ -431,7 +456,8 @@ async function placeOrder(предпочтительныеБазы = [], опц�
     const отказ = await прочитатьОтказОформления(page)
     if (отказ) {
       logger.warn('mc.ru отменил создание счёта', { причина: отказ })
-      await обработатьОтказ(отказ)
+      const р4 = await обработатьОтказ(отказ)
+      if (р4 === 'повторено') break
     }
   }
 
@@ -442,7 +468,8 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   // обнулилась — счёт не создан. Лимит по неоплаченным счетам — сразу понятная
   // ошибка; иначе перезагружаем корзину (свежее состояние, чтобы не оформить
   // счёт дважды) и пробуем нажать кнопки ещё раз.
-  for (let попытка = 0; попытка < 2; попытка++) {
+  // (после «оформить без позиций с лимитом» в корзине остаются обнулённые — не проверяем)
+  for (let попытка = 0; попытка < (опции.повторПослеЛимита ? 0 : 2); попытка++) {
     await page.goto(URL_КОРЗИНЫ, { timeout: 60000 }).catch(() => {})
     await page.waitForLoadState('domcontentloaded').catch(() => {})
     await delay(2000)
@@ -480,7 +507,7 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   // не ждём все 15 попыток и показываем сообщение в тексте ошибки.
   let accountUrl
   try {
-    accountUrl = await waitForOrderReady(page, orderTime, { сокращённо: !!предупреждениеКорзины })
+    accountUrl = await waitForOrderReady(page, orderTime, { сокращённо: !!предупреждениеКорзины, несколько: !!опции.смешанныеБазы })
   } catch (err) {
     if (предупреждениеКорзины && /лимит|неоплач/i.test(предупреждениеКорзины)) throw ошибкаЛимита(предупреждениеКорзины)
     if (предупреждениеКорзины) {
@@ -512,6 +539,15 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   }
 
   // Шаг 7 — получаем PDF
+  if (Array.isArray(accountUrl)) {
+    const пути = []
+    for (const u of accountUrl) {
+      const путь = await getPdfUrlAndDownload(page, u)
+      logger.info('PDF скачан', { path: путь })
+      пути.push(путь)
+    }
+    return пути
+  }
   const pdfPath = await getPdfUrlAndDownload(page, accountUrl)
   logger.info('PDF скачан', { path: pdfPath })
   return pdfPath
@@ -535,6 +571,7 @@ async function waitForOrderReady(page, orderTime, опции = {}) {
       const orderTime = new Date(timeStr)
       const rows = document.querySelectorAll('table tbody tr')
       let неОформлен = null
+      const urls = []
 
       for (const row of rows) {
         const dateCell = row.querySelector('td:nth-child(2)')
@@ -554,7 +591,7 @@ async function waitForOrderReady(page, orderTime, опции = {}) {
 
         if (orderDate >= orderTime) {
           const link = row.querySelector('td a[href*="main.asp"]')
-          if (link) return { url: link.href, неОформлен: null }
+          if (link) { urls.push(link.href); continue }
 
           // Нет ссылки на счёт. Если в строке «не оформлен» — запоминаем
           // (реальная вёрстка: статус «не оформлен» в первой и последней
@@ -570,12 +607,32 @@ async function waitForOrderReady(page, orderTime, опции = {}) {
           }
         }
       }
-      return { url: null, неОформлен }
+      return { url: urls[0] || null, urls, неОформлен }
     }, orderTime.toISOString())
 
     if (найдено.url) {
       logger.info('Новый заказ найден', { url: найдено.url })
-      return найдено.url
+      if (!опции.несколько) return найдено.url
+      // Несколько баз в одном заказе: mc.ru может выписать несколько счетов — даём им появиться
+      await delay(4000)
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await delay(2000)
+      const все = await page.evaluate((timeStr) => {
+        const t0 = new Date(timeStr)
+        const res = []
+        for (const row of document.querySelectorAll('table tbody tr')) {
+          const c = row.querySelector('td:nth-child(2)')
+          const m = c && c.innerText.trim().match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/)
+          if (!m) continue
+          const d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5])
+          const a = row.querySelector('td a[href*="main.asp"]')
+          if (d >= t0 && a) res.push(a.href)
+        }
+        return res
+      }, orderTime.toISOString()).catch(() => [найдено.url])
+      const уникальные = Array.from(new Set(все.length ? все : [найдено.url]))
+      logger.info('Новые счета', { количество: уникальные.length, urls: уникальные })
+      return уникальные
     }
 
     if (найдено.неОформлен) {
@@ -752,4 +809,13 @@ async function screenshotCart() {
   return screenshotPath;
 }
 
-module.exports = { placeOrder, clearCart, screenshotCart  }
+/** Открывает корзину mc.ru и возвращает её позиции [{id, название, включена, количество}]. */
+async function прочитатьКорзину() {
+  const page = await getPage()
+  await page.goto(URL_КОРЗИНЫ, { timeout: 60000 })
+  await page.waitForLoadState('domcontentloaded')
+  await delay(2000)
+  return await прочитатьПозицииКорзины(page)
+}
+
+module.exports = { placeOrder, clearCart, screenshotCart, прочитатьКорзину, названиеСовпадает }
