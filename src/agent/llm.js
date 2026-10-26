@@ -1,8 +1,15 @@
 /**
  * llm.js
- * 
+ *
  * Абстрактный слой для работы с AI моделями.
- * Сейчас используем Claude Sonnet — основная модель для прода.
+ * По умолчанию — Claude Sonnet; модель можно переопределить:
+ *   ANTHROPIC_MODEL — для всех вызовов;
+ *   PARSER_MODEL    — только для разбора заявки (см. parser.js).
+ *
+ * Экономия: askAI(prompt, { system }) кладёт статичную инструкцию в system
+ * с cache_control — Anthropic кэширует её на 5 минут, повторные вызовы
+ * читают её из кэша (≈10% цены входных токенов). Использование токенов
+ * пишется в лог и копится в статистика().
  */
 
 const Anthropic = require('@anthropic-ai/sdk')
@@ -10,6 +17,23 @@ const Anthropic = require('@anthropic-ai/sdk')
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
 })
+
+const МОДЕЛЬ_ПО_УМОЛЧАНИЮ = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
+
+// ── Учёт токенов (по моделям) ─────────────────────────────────────────
+const итоги = {}
+function учесть(модель, usage) {
+  if (!usage) return
+  const и = (итоги[модель] ||= { вызовов: 0, вход: 0, выход: 0, кэшЧтение: 0, кэшЗапись: 0 })
+  и.вызовов++
+  и.вход += usage.input_tokens || 0
+  и.выход += usage.output_tokens || 0
+  и.кэшЧтение += usage.cache_read_input_tokens || 0
+  и.кэшЗапись += usage.cache_creation_input_tokens || 0
+}
+function статистика() {
+  return JSON.parse(JSON.stringify(итоги))
+}
 
 // ── Уведомление админа о проблемах с Anthropic API ────────────────────
 // Если кредиты закончились или ключ недействителен, заявки перестают
@@ -55,25 +79,44 @@ async function уведомитьОбОшибке(err) {
   }
 }
 
-async function askAI(prompt) {
-  let response
-  try {
-    response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+/**
+ * @param {string} prompt - сообщение пользователя
+ * @param {object} [опции]
+ * @param {string} [опции.system] - статичная инструкция (кэшируется)
+ * @param {string} [опции.model] - переопределить модель для этого вызова
+ * @param {number} [опции.maxTokens]
+ */
+async function askAI(prompt, опции = {}) {
+  const модель = опции.model || МОДЕЛЬ_ПО_УМОЛЧАНИЮ
+  const запрос = {
+    model: модель,
     // Было 4000 — не хватало на заявки от ~20 позиций (особенно после
     // того, как добавили поле параметры.спецификация к каждой позиции,
     // это увеличило размер ответа). Ответ модели обрывался посреди JSON,
     // парсинг падал с ошибкой на весь текст (который к тому же ещё и не
     // помещался в сообщение Telegram — см. фикс в exportToExcel.js).
-    max_tokens: 8000,
+    max_tokens: опции.maxTokens || 8000,
     messages: [{ role: 'user', content: prompt }]
-    })
+  }
+  if (опции.system) {
+    запрос.system = [{ type: 'text', text: опции.system, cache_control: { type: 'ephemeral' } }]
+  }
+
+  let response
+  try {
+    response = await client.messages.create(запрос)
   } catch (err) {
     await уведомитьОбОшибке(err)
     throw err
   }
 
+  учесть(модель, response.usage)
+  if (response.usage) {
+    const u = response.usage
+    console.log(`[LLM] ${модель}: вход ${u.input_tokens || 0}, кэш-чтение ${u.cache_read_input_tokens || 0}, кэш-запись ${u.cache_creation_input_tokens || 0}, выход ${u.output_tokens || 0}`)
+  }
+
   return response.content[0].text
 }
 
-module.exports = { askAI, настроитьОтправителя, классифицироватьОшибку }
+module.exports = { askAI, настроитьОтправителя, классифицироватьОшибку, статистика }
