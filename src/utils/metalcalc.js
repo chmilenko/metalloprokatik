@@ -1,4 +1,8 @@
-// metalcalc.js v2.1
+// metalcalc.js v2.3
+// v2.3: записи базы, явно расходящиеся с формулой (ВГП — все ДУ из ГОСТ 3262; круг >2,5%; проф. труба >8%),
+//       заменяются расчётом по формуле — аудит базы показал ошибки в этих данных
+// v2.2: шестигранник — размер «под ключ» (было: описанный круг, занижение 25% вне базы);
+//       ВГП по формуле — наружный диаметр по ДУ из ГОСТ 3262 (было: ДУ как наружный диаметр)
 // Локальный калькулятор металлопроката. Без зависимостей, без сети.
 // Исправления: швеллер 16 = 14.2 кг/м, уголок 63x63x5 = 4.81 кг/м (из базы, а не по формуле)
 // Добавлен словарь русских синонимов для type
@@ -43,6 +47,12 @@ const TYPE_ALIASES = {
   'hexagon': 'hexagon', 'pipe_vgp': 'pipe_vgp', 'pipe_es': 'pipe_es',
   'pipe_prof': 'pipe_prof', 'angle': 'angle', 'channel': 'channel',
   'beam': 'beam', 'strip': 'strip', 'sheet': 'sheet',
+};
+
+// Наружные диаметры труб ВГП по условному проходу, мм (ГОСТ 3262)
+const OUTER_VGP = {
+  6: 10.2, 8: 13.5, 10: 17.0, 15: 21.3, 20: 26.8, 25: 33.5, 32: 42.3,
+  40: 48.0, 50: 60.0, 65: 75.5, 80: 88.5, 90: 101.3, 100: 114.0, 125: 140.0, 150: 165.0,
 };
 
 // ============ ПЛОТНОСТИ МАТЕРИАЛОВ (г/см³) ============
@@ -127,6 +137,20 @@ class MetalCalc {
     return true;
   }
 
+  // Записи базы, которым нельзя доверять: ВГП (ДУ в базе перепутаны), круг и проф. труба
+  // с отклонением от формулы больше допуска (аудит audit_calc.js)
+  _предпочестьФормулу(type, size, весБазы, весФормулы) {
+    const t = this._normalizeType(type);
+    const откл = Math.abs(весБазы - весФормулы) / весФормулы * 100;
+    if (t === 'pipe_vgp') {
+      const ду = Number(this._normalizeSize(size).split('x')[0]);
+      return !!OUTER_VGP[ду];
+    }
+    if (t === 'round') return откл > 2.5;
+    if (t === 'pipe_prof') return откл > 8;
+    return false;
+  }
+
   _calcFormulaWeight(type, size, density) {
     // Геометрический расчёт для нестандартных размеров
     const parts = this._normalizeSize(size).split('x').map(Number);
@@ -151,14 +175,15 @@ class MetalCalc {
       if (!a) return null;
       area = a * a;
     } else if (normType === 'hexagon') {
-      const dia = parts[0]; // описанная окружность
-      if (!dia) return null;
-      area = Math.sqrt(3) / 2 * (dia * dia) * 3 / 4; // правильный шестиугольник
-      area = (3 * Math.sqrt(3) / 2) * Math.pow(dia / 2, 2);
+      const s = parts[0]; // размер «под ключ» (расстояние между гранями), как в ГОСТ 2879
+      if (!s) return null;
+      area = (Math.sqrt(3) / 2) * s * s;
     } else if (normType === 'pipe_vgp' || normType === 'pipe_es') {
-      const outer = parts[0];
+      let outer = parts[0];
       const wall = parts[1];
       if (!outer || !wall) return null;
+      // ВГП задаётся условным проходом (ДУ), наружный диаметр — по ГОСТ 3262
+      if (normType === 'pipe_vgp' && OUTER_VGP[outer]) outer = OUTER_VGP[outer];
       area = Math.PI * (outer * outer - (outer - 2 * wall) * (outer - 2 * wall)) / 4;
     } else if (normType === 'pipe_prof') {
       const w = parts[0], h = parts[1] || parts[0], wall = parts[2];
@@ -206,6 +231,10 @@ class MetalCalc {
 
     // Ищем в базе
     let profile = this._findProfile(type, size);
+    if (profile) {
+      const ф = this._calcFormulaWeight(type, size, DENSITIES.steel);
+      if (ф != null && this._предпочестьФормулу(type, size, profile.weight_per_meter, ф)) profile = null;
+    }
     let weightPerMeter = null;
     let fromDb = false;
 
