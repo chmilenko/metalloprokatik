@@ -205,6 +205,9 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   const orderTime = new Date()
   orderTime.setSeconds(0, 0)
   logger.info('Время оформления заказа', { time: orderTime })
+  // Вызывающий код запоминает время: если счёт не появится сразу (бывает, что mc.ru
+  // выписывает его с задержкой), по нему можно найти заказ позже
+  if (typeof опции.приСтартеОформления === 'function') опции.приСтартеОформления(orderTime.toISOString())
 
   logger.info('Переходим в корзину')
   await page.goto('https://mc.ru/auction/page.asp/q/mymc/tab/shop/tab1/inf1')
@@ -509,6 +512,8 @@ async function placeOrder(предпочтительныеБазы = [], опц�
   try {
     accountUrl = await waitForOrderReady(page, orderTime, { сокращённо: !!предупреждениеКорзины, несколько: !!опции.смешанныеБазы })
   } catch (err) {
+    // «не оформлен» / «не появился»: заказ мог появиться на сайте позже — разрешаем повторный поиск
+    if (/не оформлен|не появился/i.test(err.message)) err.можноПовторить = true
     if (предупреждениеКорзины && /лимит|неоплач/i.test(предупреждениеКорзины)) throw ошибкаЛимита(предупреждениеКорзины)
     if (предупреждениеКорзины) {
       throw new Error(
@@ -538,19 +543,103 @@ async function placeOrder(предпочтительныеБазы = [], опц�
     throw err
   }
 
-  // Шаг 7 — получаем PDF
-  if (Array.isArray(accountUrl)) {
-    const пути = []
-    for (const u of accountUrl) {
-      const путь = await getPdfUrlAndDownload(page, u)
-      logger.info('PDF скачан', { path: путь })
-      пути.push(путь)
+  // Шаг 7 — получаем PDF. Если не вышло, прикладываем ссылки на счета к ошибке:
+  // по ним PDF можно скачать позже, не оформляя заказ заново.
+  const ссылки = Array.isArray(accountUrl) ? accountUrl : [accountUrl]
+  try {
+    if (Array.isArray(accountUrl)) {
+      const пути = []
+      for (const u of accountUrl) {
+        const путь = await getPdfUrlAndDownload(page, u)
+        logger.info('PDF скачан', { path: путь })
+        пути.push(путь)
+      }
+      return пути
     }
-    return пути
+    const pdfPath = await getPdfUrlAndDownload(page, accountUrl)
+    logger.info('PDF скачан', { path: pdfPath })
+    return pdfPath
+  } catch (err) {
+    err.счётUrls = ссылки
+    err.можноПовторить = true
+    throw err
   }
-  const pdfPath = await getPdfUrlAndDownload(page, accountUrl)
-  logger.info('PDF скачан', { path: pdfPath })
-  return pdfPath
+}
+
+/**
+ * Ищет в списке заказов mc.ru счета, выписанные в промежутке [время, до] (по умолчанию
+ * +20 минут). Нужна для повторного получения счёта, который появился на сайте с задержкой.
+ * Возвращает [{ url, номерСчёта, номерЗаказа }] — пустой список, если счетов ещё нет.
+ */
+async function найтиСчетаПоВремени(времяISO, опции = {}) {
+  const page = await getPage()
+  try {
+    await authorize()
+  } catch (err) {
+    throw new Error(`Не удалось войти на mc.ru: ${err.message}`)
+  }
+  const t0 = new Date(времяISO)
+  const t1 = опции.до ? new Date(опции.до) : new Date(t0.getTime() + 20 * 60000)
+  const попыток = опции.попыток || 8
+
+  for (let i = 0; i < попыток; i++) {
+    // reload иногда обрывается (ERR_ABORTED, пока сайт сам перенаправляет) — тогда открываем список заново
+    if (i === 0) await page.goto('https://mc.ru/partner/zak')
+    else await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => page.goto('https://mc.ru/partner/zak'))
+    await page.waitForLoadState('domcontentloaded')
+    await delay(2000)
+
+    const найдено = await page.evaluate(({ от, до }) => {
+      const a = new Date(от)
+      const b = new Date(до)
+      const res = []
+      const диагн = { строк: 0, сДатой: 0, примерыДат: [], ссылок: 0 }
+      for (const row of document.querySelectorAll('table tbody tr')) {
+        диагн.строк++
+        const c = row.querySelector('td:nth-child(2)')
+        const m = c && c.innerText.trim().match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/)
+        if (!m) continue
+        диагн.сДатой++
+        if (row.querySelector('td a[href*="main.asp"]')) диагн.ссылок++
+        if (диагн.примерыДат.length < 3) диагн.примерыДат.push(m[0] + ' → ' + new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]).toISOString())
+        const d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5])
+        if (d < a || d >= b) continue
+        const ссылка = row.querySelector('td a[href*="main.asp"]')
+        if (!ссылка) continue
+        const первая = row.querySelector('td:nth-child(1)')
+        res.push({
+          url: ссылка.href,
+          номерСчёта: ((ссылка.innerText || '').match(/\d{4,}/) || [null])[0],
+          номерЗаказа: ((первая && первая.innerText || '').match(/\d{4,}/) || [null])[0],
+        })
+      }
+      return { res, диагн }
+    }, { от: t0.toISOString(), до: t1.toISOString() })
+
+    logger.info('Повторный поиск счетов в списке заказов', {
+      попытка: i + 1, найдено: найдено.res.length, окно: [t0.toISOString(), t1.toISOString()], url: page.url(), ...найдено.диагн,
+    })
+    if (найдено.res.length > 0) return найдено.res
+    await delay(6000)
+  }
+  return []
+}
+
+/** Скачивает PDF по ссылкам на счета (из найтиСчетаПоВремени или из ошибки placeOrder). */
+async function скачатьСчёт(ссылки) {
+  const page = await getPage()
+  try {
+    await authorize()
+  } catch (err) {
+    throw new Error(`Не удалось войти на mc.ru: ${err.message}`)
+  }
+  const пути = []
+  for (const u of ссылки) {
+    const путь = await getPdfUrlAndDownload(page, u)
+    logger.info('PDF скачан (повторно)', { path: путь })
+    пути.push(путь)
+  }
+  return пути
 }
 
 async function waitForOrderReady(page, orderTime, опции = {}) {
@@ -670,24 +759,30 @@ async function getPdfUrlAndDownload(page, accountUrl) {
   console.log('URL счёта:', accountUrl)
 
   const newPage = await page.context().newPage()
-  await newPage.goto(accountUrl)
 
+  // mc.ru иногда формирует печатную форму дольше обычного: ждём 30 секунд, затем
+  // открываем страницу счёта заново и ждём ещё 30 (раньше сдавались на первых 30)
   let finalUrl = null
-  for (let i = 0; i < 15; i++) {
-    await delay(2000)
-    const currentUrl = newPage.url()
-    console.log(`Попытка ${i + 1}, URL:`, currentUrl)
+  try {
+    for (let заход = 0; заход < 2 && !finalUrl; заход++) {
+      await newPage.goto(accountUrl)
+      for (let i = 0; i < 15; i++) {
+        await delay(2000)
+        const currentUrl = newPage.url()
+        console.log(`Заход ${заход + 1}, попытка ${i + 1}, URL:`, currentUrl)
 
-    if (currentUrl.includes('save_doc')) {
-      finalUrl = currentUrl
-      break
+        if (currentUrl.includes('save_doc')) {
+          finalUrl = currentUrl
+          break
+        }
+      }
     }
+  } finally {
+    await newPage.close().catch(() => {})
   }
 
-  await newPage.close()
-
   if (!finalUrl) {
-    throw new Error('PDF не сформировался за 30 секунд')
+    throw new Error('PDF не сформировался за 60 секунд')
   }
 
   return downloadPdf(page, finalUrl)
@@ -818,4 +913,4 @@ async function прочитатьКорзину() {
   return await прочитатьПозицииКорзины(page)
 }
 
-module.exports = { placeOrder, clearCart, screenshotCart, прочитатьКорзину, названиеСовпадает }
+module.exports = { placeOrder, clearCart, screenshotCart, прочитатьКорзину, названиеСовпадает, найтиСчетаПоВремени, скачатьСчёт }

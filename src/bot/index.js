@@ -22,6 +22,7 @@ const { handleDecisionCommand } = require('./handlers/decision');
 const { экспортироватьЗаявку } = require('../scraper/exportToExcel');
 const { handleCalcCommand } = require('./handlers/calc');
 const { handleOrderCommand, handleOrderCallback, обработатьТекстКоличества } = require('./handlers/order');
+const { handleHistoryCommand, handleHistoryCallback } = require('./handlers/history');
 const { handleDiposCommand } = require('./handlers/dipos');
 const { handleBrokCommand } = require('./handlers/brok');
 const { handleStartCommand, handleHelpCommand, КОМАНДЫ_МЕНЮ } = require('./handlers/help');
@@ -119,6 +120,8 @@ bot.command('dipos', handleDiposCommand);
 bot.command('brok', handleBrokCommand);
 
 bot.action(/^o\|/, handleOrderCallback);
+bot.command('history', handleHistoryCommand);
+bot.action(/^h\|/, handleHistoryCallback);
 
 // Команда /export — экспорт заявки в Excel
 bot.command('export', async (ctx) => {
@@ -361,10 +364,11 @@ process.on('uncaughtException', (err) => {
   // но если браузер и правда умер, следующий getPage() пересоздаст его
 })
 logger.info("Бот запущен");
-bot.telegram.setMyCommands(КОМАНДЫ_МЕНЮ).catch((e) => logger.warn("Не удалось задать меню команд", { error: e.message }));
+const МЕНЮ_С_ИСТОРИЕЙ = [...КОМАНДЫ_МЕНЮ, ...(КОМАНДЫ_МЕНЮ.some((к) => к.command === 'history') ? [] : [{ command: 'history', description: 'Последние заказы' }])];
+bot.telegram.setMyCommands(МЕНЮ_С_ИСТОРИЕЙ).catch((e) => logger.warn("Не удалось задать меню команд", { error: e.message }));
 if (ADMIN_ID) {
   bot.telegram
-    .setMyCommands([...КОМАНДЫ_МЕНЮ, ...КОМАНДЫ_АДМИНА], { scope: { type: "chat", chat_id: Number(ADMIN_ID) } })
+    .setMyCommands([...МЕНЮ_С_ИСТОРИЕЙ, ...КОМАНДЫ_АДМИНА], { scope: { type: "chat", chat_id: Number(ADMIN_ID) } })
     .catch((e) => logger.warn("Не удалось задать меню команд администратора", { error: e.message }));
 }
 
