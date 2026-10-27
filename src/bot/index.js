@@ -21,11 +21,12 @@ const { handleCollectCommand } = require('./handlers/collect');
 const { handleDecisionCommand } = require('./handlers/decision');
 const { экспортироватьЗаявку } = require('../scraper/exportToExcel');
 const { handleCalcCommand } = require('./handlers/calc');
-const { handleOrderCommand, handleOrderCallback } = require('./handlers/order');
+const { handleOrderCommand, handleOrderCallback, обработатьТекстКоличества } = require('./handlers/order');
 const { handleDiposCommand } = require('./handlers/dipos');
 const { handleBrokCommand } = require('./handlers/brok');
 const { handleStartCommand, handleHelpCommand, КОМАНДЫ_МЕНЮ } = require('./handlers/help');
 const { handlePricesCommand } = require('./handlers/prices');
+const { похожеНаЗаявку, ПОДСКАЗКА } = require('../utils/orderFilter');
 const { доступ, КОМАНДЫ_АДМИНА } = require('./handlers/access');
 const { запуститьЕжедневноеОбновление: запуститьОбновлениеДипоса } = require('../scraper-dipos/download');
 const { запуститьЕжедневноеОбновление: запуститьОбновлениеБрока } = require('../scraper-brok/download');
@@ -291,8 +292,34 @@ bot.command("feedbacks", async (ctx) => {
 
 bot.on("callback_query", handleCallback);
 
+// Фильтр: сообщение без единого признака заявки («привет», «спасибо», «где мой счёт?»)
+// не отправляем в LLM — экономим деньги и не путаем менеджера странным ответом.
+// Если бот сейчас ждёт текстовый ответ (любое состояние waiting*/await* в сессии,
+// например поисковый запрос для ненайденной позиции) — фильтр не вмешивается.
+function ждётТекстовыйОтвет(userId) {
+  try {
+    const сессия = getSession(userId) || {};
+    return Object.keys(сессия).some((к) => /^(waiting|await)/i.test(к) && сессия[к]);
+  } catch (_) {
+    return true; // сомневаемся — не мешаем
+  }
+}
+
+async function фильтрЗаявок(ctx, next) {
+  const текст = ctx.message?.text || "";
+  if (ждётТекстовыйОтвет(ctx.from.id) || похожеНаЗаявку(текст)) return next();
+  logger.info("Сообщение не похоже на заявку — LLM не вызываем", { userId: ctx.from.id, текст: текст.slice(0, 80) });
+  await ctx.reply(ПОДСКАЗКА).catch(() => {});
+}
+
 // Обработка текстовых сообщений
-bot.on("text", handleMessage);
+// Пока /order ждёт количество для позиции, короткий ответ («2 т») идёт туда, а не в разбор заявки
+async function перехватКоличества(ctx, next) {
+  if (await обработатьТекстКоличества(ctx)) return;
+  return next();
+}
+
+bot.on("text", перехватКоличества, фильтрЗаявок, handleMessage);
 
 // Обработка ошибок
 bot.catch(async (err, ctx) => {
@@ -354,7 +381,17 @@ if (ADMIN_ID) {
 });
 
 // Корректное завершение при остановке
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+// bot.stop() бросает "Bot is not running!", если polling уже остановлен или ещё не
+// успел стартовать (например, pm2 restart сразу после запуска) — ловим, это не ошибка.
+function остановить(сигнал) {
+  try {
+    bot.stop(сигнал);
+  } catch (err) {
+    logger.info("Остановка бота: " + (err?.message || err));
+  }
+  setTimeout(() => process.exit(0), 1000).unref();
+}
+process.once("SIGINT", () => остановить("SIGINT"));
+process.once("SIGTERM", () => остановить("SIGTERM"));
 
 module.exports = { bot };
