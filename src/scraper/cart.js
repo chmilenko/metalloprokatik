@@ -26,6 +26,65 @@ async function addToCart(variant, quantity, unit = "т") {
   });
 
   // ============================================================
+  // 0. ПРЯМОЙ ПЕРЕХОД К КАРТОЧКЕ
+  // ============================================================
+  // Если база выбрана, добавление всё равно идёт через карточку, а её адрес мы запомнили
+  // при поиске (variant.cardUrl). Тогда страницу категории не открываем вовсе: это
+  // экономит ~3 с на позицию. Не вышло — идём прежним путём через категорию.
+  // Отключить: ПРЯМОЙ_ПЕРЕХОД_К_КАРТОЧКЕ=off в .env.
+  if (целеваяБаза && variant.cardUrl && process.env.ПРЯМОЙ_ПЕРЕХОД_К_КАРТОЧКЕ !== "off") {
+    let карточкаОткрыта = false;
+    try {
+      await page.goto(variant.cardUrl);
+      await page.waitForLoadState("domcontentloaded");
+      await page.waitForSelector(
+        'table#tab_main1 tbody tr, ul.packs li.ipacks, button[id^="btn_"]',
+        { timeout: 8000 },
+      );
+      await delay(700);
+
+      // ПРОВЕРКА, что это та самая карточка: марка и длина строки выбранной базы должны
+      // совпасть с вариантом (круг Ст45 и круг 20Х — разные карточки с одним названием).
+      // Не сошлось — открываем товар прежним путём через страницу категории.
+      const сверка = await page.evaluate((база) => {
+        const строки = Array.from(document.querySelectorAll("table#tab_main1 tbody tr"));
+        const r = strings_find(строки, база);
+        function strings_find(список, имя) {
+          return список.find((x) => (x.getAttribute("data-base") || "").trim() === имя) || null;
+        }
+        return r
+          ? { марка: (r.getAttribute("data-mark") || "").trim(), длина: (r.getAttribute("data-len") || "").trim() }
+          : null;
+      }, целеваяБаза);
+      if (сверка) {
+        const маркаНе = variant.марка && сверка.марка && сверка.марка !== String(variant.марка).trim();
+        const длинаНе = variant.длина && сверка.длина && сверка.длина !== String(variant.длина).trim();
+        if (маркаНе || длинаНе) {
+          throw new Error(
+            `карточка не совпала: марка «${сверка.марка}» / длина «${сверка.длина}», ждали «${variant.марка || ""}» / «${variant.длина || ""}»`,
+          );
+        }
+      }
+
+      карточкаОткрыта = true;
+      logger.info("Карточка открыта напрямую (без страницы категории)", {
+        название: variant.название,
+        целеваяБаза,
+        проверенаПоМаркеДлине: !!сверка,
+      });
+    } catch (e) {
+      logger.warn("Прямой переход к карточке не удался — иду через страницу категории", {
+        название: variant.название,
+        error: String(e.message || e).split("\n")[0],
+      });
+    }
+    if (карточкаОткрыта) {
+      // ошибки самого добавления (WARNING: …) пробрасываем как есть — повторять через категорию нельзя
+      return await продолжитьНаКарточке(page, variant, quantity, unit);
+    }
+  }
+
+  // ============================================================
   // 1. ПЕРЕХОД НА СТРАНИЦУ С ТОВАРОМ
   // ============================================================
 
@@ -171,7 +230,7 @@ async function addToCart(variant, quantity, unit = "т") {
   await page.evaluate((btn) => {
     btn.click();
   }, basketBtn);
-  await delay(1000);
+  await delay(300); // клик по кнопке отложен на 300 мс; дальше ждём модалку по селектору
 
   // Ждём модалку
   try {
@@ -180,7 +239,7 @@ async function addToCart(variant, quantity, unit = "т") {
     logger.info("Модалка не появилась, возможно товар уже в корзине");
     throw new Error(`WARNING:${variant.название}|после нажатия кнопки корзины окно количества не появилось`);
   }
-  await delay(500);
+  await delay(250);
 
   const iframeElement = await page.$("#addbasket");
   if (!iframeElement) {
@@ -201,7 +260,7 @@ async function addToCart(variant, quantity, unit = "т") {
     const текст = await iframe.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 200)).catch(() => '');
     throw new Error(`WARNING:${variant.название}|в окне нет поля количества (сайт показал сообщение)${текст ? ': ' + текст : ''}`);
   }
-  await delay(500);
+  await delay(250);
 
   await ввестиКоличество(iframe, quantity, unit, variant);
 
@@ -312,6 +371,15 @@ async function добавитьЧерезКарточку(page, variant, quantit
   await page.waitForLoadState("domcontentloaded");
   await delay(1500);
 
+  return await продолжитьНаКарточке(page, variant, quantity, unit);
+}
+
+/**
+ * Дальше мы УЖЕ на странице карточки товара: выбираем базу, нажимаем «в корзину»,
+ * вводим количество. Сюда попадаем либо кликом по названию на странице категории,
+ * либо прямым переходом по адресу карточки (variant.cardUrl).
+ */
+async function продолжитьНаКарточке(page, variant, quantity, unit) {
   // ============================================================
   // ВЫБОР БАЗЫ (ПРОСТОЙ СПОСОБ)
   // ============================================================
@@ -383,7 +451,7 @@ async function добавитьЧерезКарточку(page, variant, quantit
     }, 300);
   }, basketBtn);
 
-  await delay(1000);
+  await delay(300); // клик по кнопке отложен на 300 мс; дальше ждём модалку по селектору
 
   // Ждём модалку
   try {
@@ -392,7 +460,7 @@ async function добавитьЧерезКарточку(page, variant, quantit
     logger.info("Модалка не появилась, возможно товар уже в корзине");
     throw new Error(`WARNING:${variant.название}|после нажатия кнопки корзины окно количества не появилось`);
   }
-  await delay(500);
+  await delay(250);
 
   const iframeElement = await page.$("#addbasket");
   if (!iframeElement) {
@@ -413,7 +481,7 @@ async function добавитьЧерезКарточку(page, variant, quantit
     const текст = await iframe.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 200)).catch(() => '');
     throw new Error(`WARNING:${variant.название}|в окне нет поля количества (сайт показал сообщение)${текст ? ': ' + текст : ''}`);
   }
-  await delay(500);
+  await delay(250);
 
   await ввестиКоличество(iframe, quantity, unit, variant);
 
@@ -498,7 +566,7 @@ async function ввестиКоличество(iframe, quantity, unit, variant 
     if (metersType !== "hidden") {
       await iframe.click("#meters", { clickCount: 3 });
       await delay(200);
-      await iframe.type("#meters", String(quantity), { delay: 100 });
+      await iframe.type("#meters", String(quantity), { delay: 40 });
     } else {
       // Поля метров на карточке нет (например катанка в мотках) — можно вводить
       // только тонны. ВАЖНО: метры в поле тонн вводить НЕЛЬЗЯ (78 м превратились бы
@@ -513,12 +581,12 @@ async function ввестиКоличество(iframe, quantity, unit, variant 
       logger.warn("Поле метров скрыто — вводим пересчитанные тонны", { запрошено: `${quantity} ${unit}`, тонны });
       await iframe.click("#tonns", { clickCount: 3 });
       await delay(200);
-      await iframe.type("#tonns", String(тонны), { delay: 100 });
+      await iframe.type("#tonns", String(тонны), { delay: 40 });
     }
   } else {
     await iframe.click("#tonns", { clickCount: 3 });
     await delay(200);
-    await iframe.type("#tonns", String(quantity), { delay: 100 });
+    await iframe.type("#tonns", String(quantity), { delay: 40 });
   }
   await delay(1500);
 }

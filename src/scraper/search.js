@@ -764,6 +764,132 @@ async function getPaginationLinks(page) {
   );
 }
 
+/**
+ * Находит на странице категории строку варианта и возвращает { titleLink, href } —
+ * ссылку на название товара (из неё открывается карточка) и её адрес. null — строки нет.
+ */
+async function найтиСсылкуВарианта(page, variant) {
+  // СМЦ берём ДО обогащения — потом оно перезаписывается, а для точного поиска строки
+  // среди дублей нужно исходное значение со страницы категории.
+  const исходныйСмц = variant.смц;
+
+  const rows = await page.$$("tr");
+  let мягкое = null; // строка, совпавшая только по названию и СМЦ (марка/длина не сошлись)
+
+  for (const row of rows) {
+    const nameCell = await row.$("td.TovName");
+    if (!nameCell) continue;
+
+    const text = await nameCell.textContent();
+    if (!text || text.trim() !== variant.название) continue;
+
+    // ВАЖНО: несколько строк на странице категории могут делить ОДИНАКОВОЕ название
+    // (разные марки/длины/партии одного товара — это РАЗНЫЕ карточки: например круг Ст45 и
+    // 20Х). Поэтому сверяем не только СМЦ, но и марку и длину (колонки 3 и 4, как в cart.js).
+    const смцCell = (await row.$("td._fact")) || (await row.$("td:nth-child(5)"));
+    const смцТекст = смцCell ? (await смцCell.innerText()).trim() : "";
+    if (исходныйСмц && смцТекст && смцТекст !== исходныйСмц) continue;
+
+    const марка = await row.$eval("td:nth-child(3)", (el) => el.innerText.trim()).catch(() => "");
+    const длинаСтроки = await row.$eval("td:nth-child(4)", (el) => el.innerText.trim()).catch(() => "");
+    const маркаСовпадает = !variant.марка || марка === variant.марка;
+    const длинаСовпадает = !variant.длина || !длинаСтроки || длинаСтроки === String(variant.длина).trim();
+
+    const titleLink = await row.$("td.TovName a");
+    if (!titleLink) continue;
+
+    if (маркаСовпадает && длинаСовпадает) {
+      const href = await titleLink.getAttribute("href").catch(() => null);
+      return { titleLink, href, строгое: true };
+    }
+    if (!мягкое) мягкое = titleLink;
+  }
+
+  // Точной строки нет — берём «по названию и СМЦ» (как раньше), чтобы хотя бы получить
+  // базы, но адрес такой карточки НЕ запоминаем (может быть чужой): строгое = false
+  if (мягкое) {
+    const href = await мягкое.getAttribute("href").catch(() => null);
+    return { titleLink: мягкое, href, строгое: false };
+  }
+  return null;
+}
+
+/** Открывает карточку товара в новой вкладке (средний клик по ссылке названия). */
+async function открытьВкладкуКарточки(page, titleLink) {
+  const [newPage] = await Promise.all([
+    page.context().waitForEvent("page"),
+    titleLink.click({ button: "middle" }),
+  ]);
+  return newPage;
+}
+
+/**
+ * Читает карточку товара целиком (все ценовые предложения и их базы) и закрывает вкладку.
+ * Возвращает данные или null при ошибке. Одну карточку читаем ОДИН раз, даже если на неё
+ * ведут несколько строк категории (разные цены одного товара) — см. применитьКарточку.
+ */
+async function прочитатьКарточку(newPage) {
+  try {
+    await newPage.waitForLoadState("domcontentloaded");
+    await delay(1500);
+
+    const данные = { url: newPage.url(), строки: [], упаковки: [], элементы: [] };
+
+    for (const row of await newPage.$$("table#tab_main1 tbody tr")) {
+      const база = await row.getAttribute("data-base");
+      if (!база) continue;
+      данные.строки.push({ база, текст: (await row.innerText()).replace(/\s/g, "") });
+    }
+    for (const item of await newPage.$$("ul.packs li.ipacks")) {
+      const text = await item.textContent();
+      if (text) данные.упаковки.push(text.trim());
+    }
+    for (const el of await newPage.$$(".base-item, .warehouse-item, .stock-item")) {
+      const text = await el.textContent();
+      if (text && text.trim()) данные.элементы.push(text.trim());
+    }
+    return данные;
+  } catch (e) {
+    logger.warn("Не удалось прочитать карточку товара", { error: e.message });
+    return null;
+  } finally {
+    await newPage.close().catch(() => {});
+  }
+}
+
+/** Дописывает варианту базы из прочитанной карточки (с учётом цены именно этого варианта). */
+function применитьКарточку(variant, данные, строгое = true) {
+  // Заодно запоминаем реальный URL карточки (в variant.sourceUrl — только страница категории).
+  // Только если строка найдена ТОЧНО (название + СМЦ + марка + длина): по этому адресу потом
+  // бот открывает карточку напрямую при заказе, и чужая карточка = чужой товар в корзине.
+  if (строгое) variant.cardUrl = данные.url;
+
+  let allBases = [];
+
+  if (данные.строки.length > 0) {
+    // ВАЖНО: на одной карточке может быть НЕСКОЛЬКО ценовых предложений одного названия
+    // (например своя прокатка и сторонний комбинат). Если брать ВСЕ строки — оба варианта
+    // получат одинаковый полный список баз. Поэтому фильтруем строки по цене ЭТОГО варианта.
+    const цена = String(variant.цена_от_1т).replace(/\s/g, "");
+    allBases = данные.строки.filter((r) => r.текст.includes(цена)).map((r) => r.база);
+    // Если после фильтрации по цене ничего не осталось (формат цены на карточке иной) —
+    // берём ВСЕ строки: избыточный список баз лучше, чем его отсутствие.
+    if (allBases.length === 0) allBases = данные.строки.map((r) => r.база);
+  }
+  if (allBases.length === 0) allBases = данные.упаковки.slice();
+  if (allBases.length === 0) allBases = [...new Set(данные.элементы)];
+
+  if (allBases.length > 0) {
+    allBases = [...new Set(allBases)]; // карточка иногда даёт по несколько строк на базу
+    variant.смц = allBases.join(", ");
+    variant._allBases = allBases;
+    logger.info("Обогащён базами из карточки", {
+      название: variant.название,
+      базы: allBases,
+    });
+  }
+}
+
 async function searchByUrl(url, position, page) {
   const MAX_PAGES = 10;
   let allRows = [];
@@ -805,134 +931,62 @@ async function searchByUrl(url, position, page) {
     // карточки — это было основной причиной медленной работы. После
     // фильтра обычно остаётся 1-5 кандидатов, значит и вкладок открывается
     // в разы меньше.
+    // Обогащение базами из карточек. Ускорение:
+    //  1) одну и ту же карточку читаем ОДИН раз, даже если на неё ведут несколько строк
+    //     категории (у арматуры 9 вариантов — это в основном разные цены одного товара);
+    //  2) разные карточки открываем ПАЧКАМИ: вкладки открываются по очереди, а загрузка идёт
+    //     одновременно. Размер пачки: ВКЛАДОК_КАРТОЧЕК в .env (по умолчанию 3; 1 = по одной).
+    const цели = [];
     for (const variant of filtered) {
-      // Запоминаем СМЦ ДО обогащения — этим же циклом оно будет
-      // перезаписано ниже, а нам нужно исходное значение со страницы
-      // категории для точного поиска нужной строки среди дублей.
-      const исходныйСмц = variant.смц;
-
       try {
-        const rowsWithVariant = await page.$$("tr");
-        let targetRow = null;
-        for (const row of rowsWithVariant) {
-          const nameCell = await row.$("td.TovName");
-          if (!nameCell) continue;
-
-          const text = await nameCell.textContent();
-          if (!text || text.trim() !== variant.название) continue;
-
-          // ВАЖНО: несколько строк на странице категории могут делить
-          // ОДИНАКОВОЕ название (разные комбинации баз/партий одного и
-          // того же товара — например Лист х/к 1.2мм с разной ценой на
-          // разных СМЦ). Без сверки по СМЦ цикл каждый раз находил бы
-          // ПЕРВУЮ строку с таким названием — и все варианты получали
-          // бы одинаковый (неверный) результат обогащения.
-          const смцCell =
-            (await row.$("td._fact")) || (await row.$("td:nth-child(5)"));
-          const смцТекст = смцCell ? (await смцCell.innerText()).trim() : "";
-          if (исходныйСмц && смцТекст && смцТекст !== исходныйСмц) continue;
-
-          targetRow = row;
-          break;
-        }
-
-        if (!targetRow) continue;
-
-        const titleLink = await targetRow.$("td.TovName a");
-        if (!titleLink) continue;
-
-        const [newPage] = await Promise.all([
-          page.context().waitForEvent("page"),
-          titleLink.click({ button: "middle" }),
-        ]);
-
-        await newPage.waitForLoadState("domcontentloaded");
-        await delay(1500);
-
-        // Раз уж мы всё равно открываем карточку товара для сбора баз —
-        // заодно запоминаем её реальный URL. Раньше в variant.sourceUrl
-        // оставалась только ссылка на страницу КАТЕГОРИИ с фильтром (там
-        // может быть несколько строк), а не на конкретный товар.
-        variant.cardUrl = newPage.url();
-
-        let allBases = [];
-
-        const baseRows = await newPage.$$("table#tab_main1 tbody tr");
-        if (baseRows.length > 0) {
-          // ВАЖНО: на одной карточке товара может быть НЕСКОЛЬКО разных
-          // ценовых предложений одного и того же названия (например
-          // собственная прокатка и продукция стороннего комбината под
-          // тем же наименованием — так объяснил менеджер mc.ru про
-          // "Лист х/к 1х1250х2500" с ценами 65990 и 67990 одновременно).
-          // Если брать ВСЕ строки таблицы без разбора — оба сканированных
-          // варианта (65990 и 67990) получат ОДИНАКОВЫЙ полный список
-          // баз, хотя по факту у каждой цены свой, частично отличающийся
-          // набор баз. Фильтруем строки по цене ИМЕННО этого варианта.
-          const целеваяЦенаСтрока = String(variant.цена_от_1т).replace(
-            /\s/g,
-            "",
-          );
-          for (const row of baseRows) {
-            const baseName = await row.getAttribute("data-base");
-            if (!baseName) continue;
-            const rowText = (await row.innerText()).replace(/\s/g, "");
-            if (rowText.includes(целеваяЦенаСтрока)) {
-              allBases.push(baseName);
-            }
-          }
-          // Если после фильтрации по цене ничего не осталось (например
-          // формат цены на карточке отличается от страницы категории, и
-          // подстрока не совпала) — не остаёмся с пустым списком, лучше
-          // взять ВСЕ строки как раньше (избыточный список баз лучше,
-          // чем полное отсутствие информации).
-          if (allBases.length === 0) {
-            for (const row of baseRows) {
-              const baseName = await row.getAttribute("data-base");
-              if (baseName) allBases.push(baseName);
-            }
-          }
-        }
-
-        if (allBases.length === 0) {
-          const baseItems = await newPage.$$("ul.packs li.ipacks");
-          for (const item of baseItems) {
-            const text = await item.textContent();
-            if (text) allBases.push(text.trim());
-          }
-        }
-
-        if (allBases.length === 0) {
-          const baseElements = await newPage.$$(
-            ".base-item, .warehouse-item, .stock-item",
-          );
-          for (const el of baseElements) {
-            const text = await el.textContent();
-            if (text) {
-              const cleanBase = text.trim();
-              if (cleanBase && !allBases.includes(cleanBase)) {
-                allBases.push(cleanBase);
-              }
-            }
-          }
-        }
-
-        if (allBases.length > 0) {
-          allBases = [...new Set(allBases)]; // убираем дубли — карточка товара
-          // иногда даёт по несколько строк на одну базу (разные ценовые пороги)
-          variant.смц = allBases.join(", ");
-          variant._allBases = allBases;
-          logger.info("Обогащён базами из карточки", {
-            название: variant.название,
-            базы: allBases,
-          });
-        }
-
-        await newPage.close();
+        const ц = await найтиСсылкуВарианта(page, variant);
+        if (ц) цели.push({ variant, ...ц });
       } catch (e) {
-        logger.warn("Не удалось обогатить базами", {
+        logger.warn("Не удалось найти строку варианта для обогащения базами", {
           название: variant.название,
           error: e.message,
         });
+      }
+    }
+
+    // Ключ карточки — её адрес; если адреса нет, склеивать нельзя (ключ уникален)
+    const ключКарточки = (ц, k) => ц.href || `без-адреса-${k}`;
+    const карточки = new Map(); // ключ → Promise<данные | null>
+    const кЧтению = []; // первая цель каждой уникальной карточки
+    цели.forEach((ц, k) => {
+      const ключ = ключКарточки(ц, k);
+      if (!карточки.has(ключ)) {
+        карточки.set(ключ, null);
+        кЧтению.push({ ключ, ц });
+      }
+    });
+
+    const РАЗМЕР_ПАЧКИ = Math.max(1, parseInt(process.env.ВКЛАДОК_КАРТОЧЕК, 10) || 3);
+    for (let начало = 0; начало < кЧтению.length; начало += РАЗМЕР_ПАЧКИ) {
+      const пачка = кЧтению.slice(начало, начало + РАЗМЕР_ПАЧКИ);
+      for (const { ключ, ц } of пачка) {
+        try {
+          const newPage = await открытьВкладкуКарточки(page, ц.titleLink);
+          карточки.set(ключ, прочитатьКарточку(newPage));
+        } catch (e) {
+          logger.warn("Не удалось открыть карточку для обогащения базами", {
+            название: ц.variant.название,
+            error: e.message,
+          });
+          карточки.set(ключ, Promise.resolve(null));
+        }
+      }
+      await Promise.all(пачка.map(({ ключ }) => карточки.get(ключ)));
+    }
+
+    for (let k = 0; k < цели.length; k++) {
+      const данные = await карточки.get(ключКарточки(цели[k], k));
+      if (данные) {
+        try {
+          применитьКарточку(цели[k].variant, данные, цели[k].строгое);
+        } catch (e) {
+          logger.warn("Не удалось обогатить базами", { название: цели[k].variant.название, error: e.message });
+        }
       }
     }
 
