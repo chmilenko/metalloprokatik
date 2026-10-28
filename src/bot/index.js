@@ -19,7 +19,7 @@ const ktzCode = require("../utils/ktzCode");
 const { handleBasesCommand } = require('./handlers/basePriority');
 const { handleCollectCommand } = require('./handlers/collect');
 const { handleDecisionCommand } = require('./handlers/decision');
-const { экспортироватьЗаявку } = require('../scraper/exportToExcel');
+const { экспортироватьЗаявку, отправитьПоследнююТаблицу } = require('../scraper/exportToExcel');
 const { handleCalcCommand } = require('./handlers/calc');
 const { handleOrderCommand, handleOrderCallback, обработатьТекстКоличества } = require('./handlers/order');
 const { handleHistoryCommand, handleHistoryCallback } = require('./handlers/history');
@@ -120,6 +120,7 @@ bot.command('dipos', handleDiposCommand);
 bot.command('brok', handleBrokCommand);
 
 bot.action(/^o\|/, handleOrderCallback);
+bot.action('t|x', отправитьПоследнююТаблицу);
 bot.command('history', handleHistoryCommand);
 bot.action(/^h\|/, handleHistoryCallback);
 
