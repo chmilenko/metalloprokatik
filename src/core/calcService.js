@@ -6,6 +6,7 @@
 
 const { parseOrder } = require('../agent/parser');
 const { посчитайПоЗаявке } = require('../utils/metalcalc-integration');
+const logger = require('../utils/logger');
 
 const МАКС_ДЛИНА_ТЕКСТА = 600;
 const МАКС_ПОЗИЦИЙ = 15;
@@ -42,6 +43,7 @@ async function посчитатьТекстом(сырой) {
   try {
     позиции = (await parseOrder(вход)) || [];
   } catch (e) {
+    logger.error('Калькулятор: ошибка разбора текста (parseOrder)', { error: e.message, status: e.status, текст: вход.slice(0, 100) });
     return { ok: false, ошибка: 'parse', позиции: [], строки: [], итогоТонн: 0, текст: '' };
   }
   позиции = позиции.slice(0, МАКС_ПОЗИЦИЙ);
